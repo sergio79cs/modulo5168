@@ -245,7 +245,7 @@ Hay que pedir al alumnado que anote qué pasaría si revierte la imagen sin rest
 
 - **\`rollback.sh\`:** automatiza la reversión (instalar previous y restaurar el backup más reciente).
 
-- **Manifiesto del paquete:** generar un release-v1.1.0.tar.gz con los scripts, VERSION, CHANGELOG.md y un MANIFEST.txt que liste las imágenes y sus digests (docker inspect --format '{{index .RepoDigests 0}}').
+- **Manifiesto del paquete:** generar un release-v1.1.0.tar.gz con los scripts, VERSION, CHANGELOG.md y un MANIFEST.txt que liste las imágenes y sus digests (`docker inspect --format '{{index .RepoDigests 0}}'`).
 
 - **Instalación sin registry:** docker save de ambas imágenes dentro del paquete, para entornos sin acceso a red.
 
@@ -265,7 +265,7 @@ Hay que pedir al alumnado que anote qué pasaría si revierte la imagen sin rest
 
 - Scripts escritos en Windows con saltos de línea CRLF: aparece el error bad interpreter. Se soluciona con sed -i 's/\r\$//' scripts/\*.sh.
 
-- Olvidar chmod +x, o no hacer git add --chmod=+x al subirlos a Gitea.
+- Olvidar `chmod +x`, o no hacer `git add --chmod=+x` al subirlos a Gitea.
 
 - Hacer docker tag ... previous sin docker push: la etiqueta no existe en el registry.
 
