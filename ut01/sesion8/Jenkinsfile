@@ -1,0 +1,81 @@
+// Módulo 5168 · Sesión 8 — Versionado semántico y registro (RA1.g)
+// Pipeline multibranch: las ramas construyen y prueban; los tags vX.Y.Z además publican.
+
+pipeline {
+  agent any
+
+  environment {
+    // El push lo hace el daemon Docker del host (socket montado en Jenkins),
+    // por eso el registry se nombra como lo ve el host: localhost:3000.
+    REGISTRY = 'localhost:3000'
+    IMAGE    = 'localhost:3000/alumno/modulo5168-app'   // cambiar "alumno" por el usuario de Gitea
+  }
+
+  stages {
+
+    stage('Build') {
+      steps {
+        sh 'docker build -t modulo5168-app:ci-${BUILD_NUMBER} .'
+      }
+    }
+
+    stage('Test') {
+      steps {
+        // Mantener aquí los tests de sesiones anteriores
+        echo 'Tests de la aplicación'
+      }
+    }
+
+    stage('Publicar versión') {
+      // Solo se ejecuta al construir un tag SemVer: v1.2.3 o v1.2.3-rc.1
+      when {
+        tag pattern: '^v\\d+\\.\\d+\\.\\d+(-[0-9A-Za-z.-]+)?$', comparator: 'REGEXP'
+      }
+      steps {
+        withCredentials([usernamePassword(credentialsId: 'gitea-registry',
+                                          usernameVariable: 'REG_USER',
+                                          passwordVariable: 'REG_PASS')]) {
+          // Comillas simples: el secreto lo expande la shell, no Groovy
+          sh '''
+            set -eu
+            VERSION="${TAG_NAME#v}"
+            echo "Versión a publicar: $VERSION"
+
+            echo "$REG_PASS" | docker login "$REGISTRY" -u "$REG_USER" --password-stdin
+
+            # Inmutabilidad: una versión publicada no se reescribe
+            if docker manifest inspect --insecure "$IMAGE:$VERSION" > /dev/null 2>&1; then
+              echo "ERROR: $IMAGE:$VERSION ya existe en el registry. Publica una versión nueva."
+              exit 1
+            fi
+
+            docker tag "modulo5168-app:ci-$BUILD_NUMBER" "$IMAGE:$VERSION"
+            docker push "$IMAGE:$VERSION"
+
+            case "$VERSION" in
+              *-*)
+                echo "Pre-release: no se mueven MAYOR.MENOR, MAYOR ni latest"
+                ;;
+              *)
+                MINOR="${VERSION%.*}"     # 1.2.3 -> 1.2
+                MAJOR="${VERSION%%.*}"    # 1.2.3 -> 1
+                for T in "$MINOR" "$MAJOR" latest; do
+                  docker tag "$IMAGE:$VERSION" "$IMAGE:$T"
+                  docker push "$IMAGE:$T"
+                done
+                ;;
+            esac
+
+            docker image inspect --format '{{index .RepoDigests 0}}' "$IMAGE:$VERSION"
+          '''
+        }
+      }
+    }
+  }
+
+  post {
+    always {
+      sh 'docker logout "$REGISTRY" || true'
+    }
+  }
+}
