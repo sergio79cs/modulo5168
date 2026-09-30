@@ -6,13 +6,12 @@
    ===================================================================== */
 
 const CONFIG = {
-  // Primer y último día en que puede haber clase (año-mes-día)
-  // Inicio del curso de especialización y último día antes de la FE
+  // Primer y último día de clase del curso (año-mes-día)
   inicio: "2026-10-01",
-  fin: "2027-04-16",
+  fin: "2027-04-08",
 
   // Días de la semana con clase: 1 = lunes, 2 = martes, 3 = miércoles,
-  // 4 = jueves, 5 = viernes. Martes 3 h y jueves 2 h (114 h en el centro).
+  // 4 = jueves, 5 = viernes. Martes 3 h y jueves 2 h (109 h en el centro).
   diasClase: [2, 4],
 
   // Mientras sea true, la web muestra un aviso de "fechas provisionales".
@@ -36,6 +35,7 @@ const NO_LECTIVOS = [
 // Avisos que se marcan en el calendario (no quitan la clase de ese día)
 const EVENTOS = [
   { fecha: "2026-10-01", texto: "Inicio del curso" },
+  { fecha: "2027-04-08", texto: "Último día de clase" },
   { fecha: "2027-04-19", texto: "Empiezan las prácticas en empresa" }
 ];
 
