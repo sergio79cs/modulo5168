@@ -202,6 +202,41 @@
     }).join("");
   }
 
+  /* ---------- Bloques de código ---------- */
+  const COMANDOS = /^(sudo |git|docker|kubectl|minikube|helm|cd|ls|cat|echo|curl|wget|npm|npx|node|mkdir|rm|cp|mv|chmod|chown|sysctl|export|source|ab|ssh|touch|grep|tail|head|jq|java|python3?|pip|apt|systemctl|watch|find|tar|unzip|sed|awk|\.\/|[A-Z_][A-Z0-9_]*=)/;
+  function tipoBloque(txt) {
+    const lineas = txt.split("\n").map((l) => l.trim()).filter(Boolean);
+    const primera = lineas[0] || "";
+    const util = lineas.find((l) => !l.startsWith("#")) || "";
+    if (/^#!.*(bash|sh)/.test(primera)) return { titulo: "Script bash" };
+    if (/^(FROM|ARG) /.test(util)) return { titulo: "Dockerfile" };
+    if (/^(pipeline\s*\{|stage\(|node\s*\{)/.test(util)) return { titulo: "Jenkinsfile" };
+    if (/^(const|let|var|function|import|module\.|\/\/|require\()/.test(util)) return { titulo: "JavaScript" };
+    if (/^[{\[]/.test(util)) return { titulo: "JSON" };
+    if (/^\[[\w.-]+\]$/.test(util) || /^[\w.-]+\s*=\s*\S/.test(util) && !COMANDOS.test(util)) return { titulo: "Configuración" };
+    if (COMANDOS.test(util)) return { titulo: "alumno@lab5168: ~", terminal: true };
+    return { titulo: "Texto" };
+  }
+  function pintarTerminal(txt) {
+    let sigue = false, heredoc = null;
+    return txt.split("\n").map((l) => {
+      const e = esc(l);
+      if (heredoc) { if (l.trim() === heredoc) heredoc = null; return `<span class="t-salida">${e}</span>`; }
+      const hd = l.match(/<<-?\s*['"]?(\w+)['"]?/);
+      let html;
+      if (!l.trim()) html = e;
+      else if (sigue || /^\s/.test(l)) html = `<span class="t-cont">${e}</span>`;
+      else if (l.trim().startsWith("#")) html = `<span class="t-com">${e}</span>`;
+      else if (COMANDOS.test(l.trim())) {
+        const partes = e.match(/^(.*?)(\s{2,}#.*)?$/);
+        html = `<span class="t-prompt" aria-hidden="true"><span class="t-user">alumno@lab5168</span>:<span class="t-ruta">~</span>$ </span><span class="t-cmd">${partes[1]}</span>${partes[2] ? `<span class="t-com">${partes[2]}</span>` : ""}`;
+      } else html = `<span class="t-salida">${e}</span>`;
+      sigue = /\\\s*$/.test(l);
+      if (hd) heredoc = hd[1];
+      return html;
+    }).join("\n");
+  }
+
   /* ---------- Páginas de sesión ---------- */
   function mejorarSesion() {
     const main = document.querySelector("main.contenido");
@@ -234,24 +269,36 @@
       }
     }
 
-    // Botón de copiar en los bloques de código
+    // Bloques de código como ventanas de terminal o de editor
     main.querySelectorAll("pre").forEach((pre) => {
       const code = pre.querySelector("code") || pre;
-      const txt = code.textContent.trim();
-      if (/^(flowchart|graph|sequenceDiagram|gitGraph|stateDiagram|classDiagram)\b/.test(txt)) {
+      const txt = code.textContent.replace(/\n$/, "");
+      const limpio = txt.trim();
+      const caja = pre.closest(".highlighter-rouge") || pre;
+      if (/^(flowchart|graph|sequenceDiagram|gitGraph|stateDiagram|classDiagram)\b/.test(limpio)) {
         const d = document.createElement("div");
-        d.className = "mermaid"; d.textContent = txt;
-        (pre.closest(".highlighter-rouge") || pre).replaceWith(d);
+        d.className = "mermaid"; d.textContent = limpio;
+        caja.replaceWith(d);
         return;
       }
+      const tipo = tipoBloque(txt);
+      if (tipo.terminal) code.innerHTML = pintarTerminal(txt);
+      const ventana = document.createElement("figure");
+      ventana.className = "term" + (tipo.terminal ? " es-terminal" : " es-archivo");
+      const barra = document.createElement("figcaption");
+      barra.className = "term-barra";
+      barra.innerHTML = `<span class="term-botones" aria-hidden="true"><i></i><i></i><i></i></span><span class="term-titulo">${esc(tipo.titulo)}</span>`;
       const b = document.createElement("button");
       b.className = "copiar"; b.type = "button"; b.textContent = "Copiar";
       b.onclick = async () => {
-        try { await navigator.clipboard.writeText(code.textContent); b.textContent = "Copiado"; }
+        try { await navigator.clipboard.writeText(txt); b.textContent = "Copiado"; }
         catch (e) { b.textContent = "Selecciónalo y copia"; }
         setTimeout(() => (b.textContent = "Copiar"), 1600);
       };
-      pre.classList.add("con-copiar"); pre.appendChild(b);
+      barra.appendChild(b);
+      caja.before(ventana);
+      ventana.append(barra, pre);
+      if (caja !== pre) caja.remove();
     });
 
     // Tablas anchas con scroll propio
