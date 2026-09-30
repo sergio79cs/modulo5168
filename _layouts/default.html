@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% if page.title and page.title != site.title %}{{ page.title | strip_html }} | {% endif %}{{ site.title }}</title>
+  <meta name="description" content="{{ site.description }}">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Public+Sans:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ '/assets/css/estilo.css' | relative_url }}">
+  <script>window.BASE = "{{ site.baseurl }}";</script>
+</head>
+<body class="{% if page.portada %}portada{% else %}pagina{% endif %}">
+  <a class="saltar" href="#contenido">Saltar al contenido</a>
+  <header class="barra">
+    <a class="marca" href="{{ '/' | relative_url }}"><span class="marca-num">5168</span><span class="marca-txt">Despliegue continuo</span></a>
+    <nav class="menu" aria-label="Principal">
+      <a href="{{ '/#hoy' | relative_url }}">Hoy</a>
+      <a href="{{ '/#calendario' | relative_url }}">Calendario</a>
+      <a href="{{ '/#unidades' | relative_url }}">Unidades</a>
+    </nav>
+  </header>
+
+  <main id="contenido" class="{% if page.portada %}lienzo{% else %}contenido{% endif %}">
+    {{ content }}
+  </main>
+
+  <footer class="pie">
+    <p>Módulo 5168 · Definición de flujos de procesos de despliegue continuo · Curso 2026-2027</p>
+  </footer>
+
+  <script src="{{ '/assets/js/calendario.js' | relative_url }}"></script>
+  <script src="{{ '/assets/js/app.js' | relative_url }}"></script>
+</body>
+</html>
