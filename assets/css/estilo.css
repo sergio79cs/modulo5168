@@ -268,8 +268,9 @@ a:hover { text-decoration-thickness: 2px; }
   background: #1e2230; color: #e6e9f0; border-radius: 0;
   font: 400 .88rem/1.65 var(--mono); tab-size: 2;
 }
-.contenido pre code, .contenido pre.highlight { padding: 0; background: none; color: inherit; font-size: inherit; }
-.contenido pre.highlight { padding: 1rem 1.2rem 1.1rem; background: #1e2230; }
+.contenido pre code { padding: 0; background: none; color: inherit; font-size: inherit; }
+.contenido pre.highlight { padding: 1rem 1.2rem 1.1rem; background: #1e2230; color: #e6e9f0; }
+.term pre { scrollbar-color: #4a5166 #1e2230; }
 .term {
   margin: 1.3rem 0; border-radius: 10px; overflow: hidden;
   background: #1e2230; box-shadow: 0 14px 30px -18px rgba(10, 16, 35, .7), 0 0 0 1px rgba(255, 255, 255, .06) inset;
