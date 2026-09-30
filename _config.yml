@@ -1,0 +1,19 @@
+title: "Módulo 5168 · Despliegue continuo"
+description: "Definición de flujos de procesos de despliegue continuo. Curso 2026-2027."
+lang: es
+baseurl: "/modulo5168"
+
+markdown: kramdown
+kramdown:
+  input: GFM
+  hard_wrap: false
+
+# Todas las páginas (también los .md sin cabecera) usan el diseño nuevo
+defaults:
+  - scope:
+      path: ""
+    values:
+      layout: default
+
+exclude:
+  - README.md

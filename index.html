@@ -1,0 +1,40 @@
+---
+layout: default
+title: Inicio
+portada: true
+---
+<section class="hero" id="hoy">
+  <div class="hero-texto">
+    <p class="hero-mod">Módulo 5168, curso 2026-2027</p>
+    <h1>Definición de flujos de procesos de despliegue continuo</h1>
+    <p class="hero-intro">Del commit a producción sin tocar nada a mano. Aquí tienes el material de cada sesión, ordenado según el calendario de clase.</p>
+  </div>
+  <div class="hoy" id="hoy-tarjeta" aria-live="polite"></div>
+</section>
+
+<section class="bloque bloque-pipe" aria-labelledby="pipe-titulo">
+  <h2 id="pipe-titulo">Unidad en curso</h2>
+  <div id="pipe-portada"></div>
+  <p class="leyenda"><span class="ley hecha">Hecha</span><span class="ley encurso">En curso</span><span class="ley pendiente">Pendiente</span></p>
+</section>
+
+<section class="bloque" id="calendario" aria-labelledby="cal-h">
+  <div class="cal-barra">
+    <h2 id="cal-h">Calendario</h2>
+    <div class="cal-controles">
+      <button type="button" id="cal-ant" aria-label="Mes anterior">‹</button>
+      <p id="cal-mes" aria-live="polite"></p>
+      <button type="button" id="cal-sig" aria-label="Mes siguiente">›</button>
+      <button type="button" id="cal-hoy" class="cal-hoy">Ir a hoy</button>
+    </div>
+  </div>
+  <p class="cal-ayuda">Pulsa un día de clase para abrir la sesión que toca.</p>
+  <div class="cal" id="cal"></div>
+</section>
+
+<section class="bloque" id="unidades" aria-labelledby="uts-h">
+  <h2 id="uts-h">Unidades de trabajo</h2>
+  <div class="uts" id="uts"></div>
+</section>
+
+<noscript><p>Activa JavaScript para ver el calendario. El material está en <a href="ut01/">UT01</a>.</p></noscript>
