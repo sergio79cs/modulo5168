@@ -1,6 +1,6 @@
 [← Sesión 5](sesion5.md) · [Índice de la UT01](./) · [Sesión 7 →](sesion7.md)
 
-# Módulo 5168 Definición de flujos de procesos de despliegue continuo · Sesión 3 - Pruebas funcionales y no funcionales
+# Módulo 5168 Definición de flujos de procesos de despliegue continuo · Sesión 6 - Pruebas funcionales y no funcionales
 
 ## 1. Teoría
 
