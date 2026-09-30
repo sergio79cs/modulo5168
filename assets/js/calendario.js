@@ -7,28 +7,35 @@
 
 const CONFIG = {
   // Primer y último día en que puede haber clase (año-mes-día)
-  inicio: "2026-09-15",
+  // Inicio del curso de especialización y último día antes de la FE
+  inicio: "2026-10-01",
   fin: "2027-04-16",
 
   // Días de la semana con clase: 1 = lunes, 2 = martes, 3 = miércoles,
-  // 4 = jueves, 5 = viernes
+  // 4 = jueves, 5 = viernes. Martes 3 h y jueves 2 h (114 h en el centro).
   diasClase: [2, 4],
 
   // Mientras sea true, la web muestra un aviso de "fechas provisionales".
   // Ponlo en false cuando las fechas sean las definitivas.
-  provisional: true
+  provisional: false
 };
 
 // Días sin clase. Un día suelto: "2026-10-12".
 // Un periodo: ["2026-12-23", "2027-01-06", "Vacaciones de Navidad"].
+// Sacados del calendario oficial del centro 2026-2027 (pestaña CE).
 const NO_LECTIVOS = [
+  ["2026-10-09", "2026-10-09", "9 d'Octubre"],
   ["2026-10-12", "2026-10-12", "Festivo"],
   ["2026-12-08", "2026-12-08", "Festivo"],
-  ["2026-12-23", "2027-01-06", "Vacaciones de Navidad"]
+  ["2026-12-22", "2027-01-06", "Navidad"],
+  ["2027-03-01", "2027-03-05", "Magdalena"],
+  ["2027-03-19", "2027-03-19", "San José"],
+  ["2027-03-25", "2027-04-02", "Pascua"]
 ];
 
 // Avisos que se marcan en el calendario (no quitan la clase de ese día)
 const EVENTOS = [
+  { fecha: "2026-10-01", texto: "Inicio del curso" },
   { fecha: "2027-04-19", texto: "Empiezan las prácticas en empresa" }
 ];
 
