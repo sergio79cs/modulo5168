@@ -7,7 +7,7 @@
 
 ## Antes de empezar
 
-Cada alumno monta el laboratorio completo en su ordenador: Docker, Gitea, Jenkins, Minikube y un registry de imágenes, sin ningún servidor compartido. Los contenedores se encuentran por nombre (`gitea`, `jenkins`) dentro de la red de Docker `lab5168`, nunca por `localhost`.
+Montas el laboratorio completo en tu ordenador: Docker, Gitea, Jenkins, Minikube y un registry de imágenes, sin ningún servidor compartido. Los contenedores se encuentran por nombre (`gitea`, `jenkins`) dentro de la red de Docker `lab5168`, nunca por `localhost`.
 
 **Requisitos**
 
@@ -502,7 +502,7 @@ Las UT usan herramientas y rutas que van más allá de los pasos anteriores. El 
 | UT3  | Redis en el clúster y scripts de validación                                                                                                                                                                         | `lab/k8s/redis-*.yaml` y `lab/scripts/`                          |
 | UT4  | `ab` y npm en Jenkins, acceso a la aplicación, rollback y métricas                                                                                                                                                  | Imagen `jenkins-lab`, `lab/k8s/service.yaml` y `lab/Jenkinsfile` |
 
-**1. Herramientas en el equipo del alumno**
+**1. Herramientas en tu equipo**
 
 Ansible se usa desde el equipo en las sesiones 5 y 6 de la UT2, y Apache Bench en la UT01:
 
@@ -550,7 +550,7 @@ El webhook del apartado 1bis no dispara este tipo de Job: el escaneo periódico 
 
 **5. Dos registries**
 
-La UT01 (sesión 8) publica las versiones en el registry de Gitea (`localhost:3000/<usuario>/modulo5168-app`, credencial `gitea-registry`). El despliegue en Minikube de las UT2 a UT4 usa el registry del paso 6 (`localhost:5000`, credencial `registry-credentials`). Son dos registries independientes: conviene explicarlo al alumnado. Las sesiones 5 y 8 de la UT01, si el alumno todavía no tiene Minikube, usan un registry temporal en el puerto 5001: el 5000 está reservado para el del laboratorio y no debe ocuparse con otro `registry:2`.
+La UT01 (sesión 8) publica las versiones en el registry de Gitea (`localhost:3000/<usuario>/modulo5168-app`, credencial `gitea-registry`). El despliegue en Minikube de las UT2 a UT4 usa el registry del paso 6 (`localhost:5000`, credencial `registry-credentials`). Son dos registries independientes. Las sesiones 5 y 8 de la UT01, si todavía no tienes Minikube, usan un registry temporal en el puerto 5001: el 5000 está reservado para el del laboratorio y no debe ocuparse con otro `registry:2`.
 
 **6. SonarQube dentro de Jenkins (UT01, sesión 9)**
 
@@ -562,7 +562,7 @@ La práctica integradora lanza el análisis con `withSonarQubeEnv('sonarqube')` 
 
 La sesión 9 también necesita la credencial `gitea-cred` (Username with password: tu usuario de Gitea y un token). Sirve para el checkout y para subir la imagen y el tag.
 
-Este apartado está escrito a partir de la solución docente de la sesión 9 y no se ha probado en un laboratorio completo.
+Este apartado todavía no se ha probado en un laboratorio completo: si algo no coincide, comprueba los nombres exactos que se indican.
 
 ## 12. Después de reiniciar el equipo
 
