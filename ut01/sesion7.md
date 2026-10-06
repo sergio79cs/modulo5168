@@ -140,9 +140,9 @@ Cada grupo presenta la tabla que genera `comparar-carga.sh` y responde:
 
 ### Debate: ¿deben ir los resultados en Git?
 
-A favor: es trazable y va junto al código que se ha probado. En contra: el repositorio crece y los resultados dependen de la máquina de cada alumno. Pregunta final: ¿quién debería ejecutar y guardar estas pruebas, cada desarrollador o el servidor de CI? Es el puente hacia Jenkins en las sesiones siguientes.
+A favor: es trazable y va junto al código que se ha probado. En contra: el repositorio crece y los resultados dependen de la máquina en la que se ejecutan. Pregunta final: ¿quién debería ejecutar y guardar estas pruebas, cada desarrollador o el servidor de CI? Es el puente hacia Jenkins en las sesiones siguientes.
 
-Una frase por alumno: "Mi versión es / no es apta porque…", con al menos una cifra.
+Escribe una frase: "Mi versión es / no es apta porque…", con al menos una cifra.
 
 ## 4. Entregable y evaluación
 
@@ -166,7 +166,7 @@ El cambio se añade al principio del manejador de la ruta `/` de la aplicación:
 const fin = Date.now() + 20; while (Date.now() < fin) {}
 ```
 
-Como cada alumno tiene su propio laboratorio, cada uno crea la versión en su repositorio:
+Como tienes tu propio laboratorio, crea la versión en tu repositorio:
 
 ```
 git switch -c regresion

@@ -2,7 +2,7 @@
 
 # Módulo 5168 Definición de flujos de procesos de despliegue continuo · Sesión 4 - Docker II
 
-**Objetivo:** que el alumnado entienda por qué una imagen de producción debe contener solo lo necesario para ejecutar, y lo compruebe midiendo dos versiones de la misma app.
+**Objetivo:** entender por qué una imagen de producción debe contener solo lo necesario para ejecutar, y comprobarlo midiendo dos versiones de la misma app.
 
 **Supuesto:** `modulo5168-app` es una app Node.js/Express con tests en Jest.
 
@@ -118,7 +118,7 @@ EXPOSE 3000
 CMD ["node", "src/index.js"]
 ```
 
-Antes de construir, debis detectar al menos tres problemas: imagen base completa, ejecución como root, instala devDependencies, `COPY . .` antes de instalar rompe la caché y no hay healthcheck.
+Antes de construir, debéis detectar al menos tres problemas: imagen base completa, ejecución como root, instala devDependencies, `COPY . .` antes de instalar rompe la caché y no hay healthcheck.
 
 ```
 docker build -f Dockerfile.singlestage -t modulo5168-app:singlestage .

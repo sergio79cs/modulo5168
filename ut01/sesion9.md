@@ -11,7 +11,7 @@ En esta sesión vas a construir, sobre tu propio repositorio de Gitea, un pipeli
 
 ## Antes de empezar
 
-Comprueba que tu laboratorio está listo. Si algo falla, avisa al profesor antes de seguir.
+Comprueba que tu laboratorio está listo. Si algo falla, revisa la [guía del laboratorio](../laboratorio/) antes de seguir.
 
 - ☐ Gitea, Jenkins y la herramienta de análisis de calidad están arrancados y accesibles.
 - ☐ Jenkins puede ejecutar comandos `docker` (acceso al socket de Docker).
@@ -72,19 +72,17 @@ Cada caja es una *stage* de tu `Jenkinsfile`. Si una se bloquea, el pipeline no 
 - Sube la imagen al registry de Gitea con tres etiquetas: `X.Y.Z`, `X.Y` y `latest`.
 - Crea el tag `vX.Y.Z` en tu repositorio de Gitea.
 
-## Hitos orientativos
+## Orden de trabajo
 
-| Minuto | Deberías tener terminado                         |
-|--------|--------------------------------------------------|
-| 10'    | Laboratorio comprobado                           |
-| 30'    | a · Checkout de la rama por parámetro            |
-| 55'    | b · Análisis de calidad con *quality gate*       |
-| 80'    | c · Imagen multi-stage construida                |
-| 100'   | d · Imagen `previous` y scripts archivados       |
-| 135'   | e · Pruebas funcionales, de carga y de seguridad |
-| 150'   | f · Resultados publicados y archivados           |
-| 170'   | g · Imagen publicada y tag creado                |
-| 180'   | Puesta en común                                  |
+1. Laboratorio comprobado.
+2. a · Checkout de la rama por parámetro.
+3. b · Análisis de calidad con *quality gate*.
+4. c · Imagen multi-stage construida.
+5. d · Imagen `previous` y scripts archivados.
+6. e · Pruebas funcionales, de carga y de seguridad.
+7. f · Resultados publicados y archivados.
+8. g · Imagen publicada y tag creado.
+9. Puesta en común.
 
 Si te atascas en un criterio, desactívalo con `when { expression { false } }` y sigue con el siguiente. Vuelve a él al final.
 

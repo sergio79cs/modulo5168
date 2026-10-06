@@ -3,7 +3,7 @@
 
 # Módulo 5168 Definición de flujos de procesos de despliegue continuo · Sesión 5 - Comprobación del paquete
 
-**Objetivo de la sesión:** que el alumnado entienda que desplegar no es solo publicar una imagen nueva. Un paquete de despliegue completo debe permitir tres cosas: instalar la versión nueva, adaptar los datos existentes a ella y volver atrás si algo falla.
+**Objetivo de la sesión:** entender que desplegar no es solo publicar una imagen nueva. Un paquete de despliegue completo debe permitir tres cosas: instalar la versión nueva, adaptar los datos existentes a ella y volver atrás si algo falla.
 
 ## 7.1 Teoría
 
@@ -283,7 +283,7 @@ cat ~/modulo5168/data/app.conf        # comprobar formato 2
 cp ~/modulo5168/data/app.conf.bak.* ~/modulo5168/data/app.conf
 ```
 
-Hay que pedir al alumnado que anote qué pasaría si revierte la imagen sin restaurar el backup. Enlaza con la pregunta de la teoría y con la sesión de rollback del RA3.
+Anota qué pasaría si revirtieras la imagen sin restaurar el backup. Enlaza con la pregunta de la teoría y con la sesión de rollback del RA3.
 
 ### Ampliación (para quien termine antes)
 
@@ -293,7 +293,7 @@ Hay que pedir al alumnado que anote qué pasaría si revierte la imagen sin rest
 
 ## 7.3 Revisión
 
-**Puesta en común :** dos o tres alumnos muestran su ensayo completo. El resto contrasta con estas preguntas:
+**Puesta en común:** algunas personas muestran su ensayo completo y el resto lo contrasta con estas preguntas:
 
 - ¿Qué pasa si ejecutáis `install.sh` sin argumento? ¿Y dos veces seguidas?
 - ¿Dónde está la garantía real de poder volver a la v1.0.0: en `previous` o en `v1.0.0`?

@@ -5,7 +5,7 @@
 
 ## Objetivos y requisitos previos
 
-Al terminar, cada alumno sabe elegir el número de versión de un cambio y publica esa versión en el registry sin intervención manual.
+Al terminar, sabrás elegir el número de versión de un cambio y publicar esa versión en el registry sin intervención manual.
 
 Objetivos:
 
@@ -14,7 +14,7 @@ Objetivos:
 - Publicar y recuperar imágenes del registry de contenedores de Gitea.
 - Automatizar la publicación con un stage de Jenkins que solo se ejecuta al empujar un tag `vX.Y.Z`.
 
-Requisitos en el ordenador de cada alumno:
+Requisitos en tu ordenador:
 
 - Imagen `modulo5168-app:v1.1.0` construida en sesiones anteriores.
 - Gitea en `localhost:3000` con el apartado Packages activo y `ROOT_URL = http://localhost:3000/` en `app.ini`.
@@ -68,7 +68,7 @@ El ciclo manual es `build → tag → login → push → pull`; Jenkins repite e
 
 ## Práctica
 
-Se hace primero el ciclo a mano y después se automatiza. Los ejemplos usan el usuario `alumno`; cada uno pone el suyo.
+Se hace primero el ciclo a mano y después se automatiza. Los ejemplos usan el usuario `alumno`; sustitúyelo por el tuyo.
 
 ### Paso 1 · Ciclo manual
 
@@ -101,7 +101,7 @@ ALLOWED_HOST_LIST = private,loopback
 
 Si el job usa una fuente Git normal (no la de Gitea), el webhook no dispara el escaneo del job multibranch. Se puede marcar en el job Scan Multibranch Pipeline Triggers \> Periodically if not otherwise run con un intervalo de 1 minuto, o lanzar *Scan Multibranch Pipeline Now* a mano tras crear el tag. Con el valor ALLOWED_HOST_LIST que ya lleva el contenedor de Gitea (guía de instalación, paso 1bis) no hace falta tocar app.ini.
 
-### Paso 3 · Publicación automática (15')
+### Paso 3 · Publicación automática
 
 Copiar el stage *Publicar versión* del Jenkinsfile (apartado siguiente) al repositorio. Hacer un cambio pequeño, decidir si es PARCHE o MENOR y empujar el tag:
 
@@ -112,7 +112,7 @@ git push origin v1.1.1
 
 Resultado esperado: en Jenkins aparece un build bajo la pestaña *Tags* con el stage en verde. En Gitea Packages se ven `1.1.1`, `1.1`, `1` y `latest` con el nuevo digest, y `1.1.0` sigue intacto.
 
-### Paso 4 · Errores provocados (15')
+### Paso 4 · Errores provocados
 
 | Prueba             | Qué hacer                                            | Resultado esperado                                        |
 |--------------------|------------------------------------------------------|-----------------------------------------------------------|
@@ -221,20 +221,20 @@ pipeline {
 
 ## Cierre
 
-- **Puesta en común (10').** ¿Quién eligió PARCHE y quién MENOR? ¿Estaba bien elegido? ¿Qué habría pasado si el pipeline hubiera dejado reescribir `1.1.1`?
-- **Debate (5').** Si después de publicar `1.2.0` alguien publica un parche de mantenimiento `1.1.2`, con este Jenkinsfile `latest` y `1` retroceden a `1.1.2`. La solución real compara con la versión más alta publicada antes de mover etiquetas. Reto opcional para quien acabe antes.
-- **Entrega (5')** en Aules.
+- **Puesta en común.** ¿Quién eligió PARCHE y quién MENOR? ¿Estaba bien elegido? ¿Qué habría pasado si el pipeline hubiera dejado reescribir `1.1.1`?
+- **Debate.** Si después de publicar `1.2.0` alguien publica un parche de mantenimiento `1.1.2`, con este Jenkinsfile `latest` y `1` retroceden a `1.1.2`. La solución real compara con la versión más alta publicada antes de mover etiquetas. Reto opcional para quien acabe antes.
+- **Entrega** en Aules.
 
 ### Notas:
 
 - `localhost:3000` **en la imagen y** `gitea:3000` **en el checkout.** Con el socket de Docker montado, el `docker push` lo ejecuta el daemon del host, que ve Gitea en `localhost`. El checkout de Git sale del contenedor de Jenkins, que ve Gitea por su nombre en la red Docker. Con Docker-in-Docker habría que ajustarlo.
 - **Docker y HTTP.** Docker acepta registries sin TLS en `localhost`, así que no hace falta tocar `insecure-registries`.
 - **Login fallido.** Casi siempre es un `ROOT_URL` de Gitea que no coincide con `http://localhost:3000/`.
-- **Adelanto para Kubernetes.** Con kind o minikube, `localhost` dentro del clúster no es el del alumno: habrá que cargar la imagen en el clúster o apuntar a la IP del host.
+- **Adelanto para Kubernetes.** Con kind o minikube, `localhost` dentro del clúster no es el de tu ordenador: habrá que cargar la imagen en el clúster o apuntar a la IP del host.
 
 ## Entregable y rúbrica
 
-Cada alumno sube a Aules cuatro capturas y una justificación:
+Sube a Aules cuatro capturas y una justificación:
 
 1. Gitea Packages con `modulo5168-app` y sus etiquetas (`1.1.0`, `1.1.1`, `1.1`, `1`, `latest`).
 2. Jenkins con el build del tag y el stage *Publicar versión* en verde.

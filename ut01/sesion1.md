@@ -2,13 +2,13 @@
 
 # Módulo 5168 Definición de flujos de procesos de despliegue continuo · Sesión 1 — Git avanzado
 
-**Objetivo.** Al terminar, el alumnado sabrá trabajar con ramas siguiendo una estrategia definida, integrar cambios con merge y rebase, resolver conflictos y etiquetar versiones. También sabrá escribir commits que permitan calcular automáticamente la siguiente versión del software. Es la base sobre la que se construirá el pipeline de integración y despliegue continuo del módulo.
+**Objetivo.** Al terminar, sabrás trabajar con ramas siguiendo una estrategia definida, integrar cambios con merge y rebase, resolver conflictos y etiquetar versiones. También sabrás escribir commits que permitan calcular automáticamente la siguiente versión del software. Es la base sobre la que se construirá el pipeline de integración y despliegue continuo del módulo.
 
-**Entorno de trabajo.** Todo el laboratorio del módulo se monta en local, en el ordenador de cada alumno: Docker, Gitea, Jenkins y Kubernetes. En esta sesión solo se usa Gitea como servidor Git.
+**Entorno de trabajo.** Todo el laboratorio del módulo se monta en local, en tu ordenador: Docker, Gitea, Jenkins y Kubernetes. En esta sesión solo se usa Gitea como servidor Git.
 
 ### Preparación previa: Gitea en local
 
-Debe estar hecha antes de la sesión (o restando unos 15 minutos a la teoría). Requisitos: Git, Node.js y Docker instalados.
+Debe estar hecha antes de la sesión. Requisitos: Git, Node.js y Docker instalados.
 
 **1. Arrancar Gitea en un contenedor.**
 
@@ -294,7 +294,7 @@ Deberías ver algo parecido a esto (los identificadores cambiarán):
 
 ### Preparación: dos variantes
 
-Cada alumno tiene su propio Gitea en local, así que la pareja necesita un remoto común para que el conflicto sea real. Hay dos variantes: conviene probar la A en el aula antes de la sesión y dejar la B como plan de respaldo.
+Cada persona tiene su propio Gitea en local, así que la pareja necesita un remoto común para que el conflicto sea real. Hay dos variantes: usa la A si la red del aula permite conectar los equipos entre sí y, si no, la B.
 
 **Variante A — En parejas, con el Gitea de uno de los dos.** La persona A comparte su Gitea y la persona B trabaja contra él por la red del aula.
 
@@ -305,7 +305,7 @@ Cada alumno tiene su propio Gitea en local, así que la pareja necesita un remot
 
 Requisitos: la red del aula debe permitir conexiones entre equipos y el cortafuegos del ordenador de A debe dejar pasar el puerto 3000.
 
-**Variante B — Individual, simulando a dos personas.** Cada alumno clona su propio repositorio dos veces, en carpetas distintas, y da a cada copia una identidad diferente:
+**Variante B — Individual, simulando a dos personas.** Clona tu propio repositorio dos veces, en carpetas distintas, y da a cada copia una identidad diferente:
 
 ```
 git clone http://localhost:3000/<tu-usuario>/saludo-app.git persona-a
@@ -414,7 +414,7 @@ Para terminar, etiquetad la versión acordada y subidla con `git push origin mai
 
 **Planteamiento:** durante el curso construiremos un pipeline de despliegue continuo con Jenkins, Docker y Kubernetes, sobre una aplicación desarrollada en pequeños equipos. ¿Qué estrategia de branching elegiríais para ese proyecto y por qué?
 
-**Dinámica propuesta:** tres grupos, cada uno defiende una estrategia durante 5 minutos. Los últimos 10 minutos se dedican a llegar a un acuerdo común.
+**Dinámica propuesta:** tres grupos; cada uno defiende una estrategia y, después, todos intentan llegar a un acuerdo común.
 
 ### Preguntas guía
 
@@ -424,7 +424,7 @@ Para terminar, etiquetad la versión acordada y subidla con `git push origin mai
 4. Si integramos a `main` varias veces al día, ¿qué necesitamos para que eso no rompa producción?
 5. ¿Cómo encaja cada estrategia con un pipeline que despliega automáticamente cada vez que cambia `main`?
 
-### Conclusión orientativa (para el docente)
+### Conclusión orientativa
 
 Para un equipo pequeño, con un único entorno de producción y un pipeline que despliega tras cada fusión, lo razonable es **GitHub Flow**: ramas cortas y Pull Requests validadas por el CI. A medida que la batería de pruebas sea fiable, se puede evolucionar hacia **trunk-based**. Git Flow aporta estructura, pero sus ramas largas van en contra del objetivo del módulo.
 

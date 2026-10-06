@@ -4,7 +4,7 @@
 
 ## Objetivos de aprendizaje
 
-Al acabar la sesión, el alumnado será capaz de:
+Al acabar la sesión, serás capaz de:
 
 1. Distinguir imagen, contenedor, capa y registro, y explicar la relación entre ellos.
 2. Escribir un Dockerfile para una aplicación Node.js que aproveche la caché de capas.
@@ -37,7 +37,7 @@ un contenedor no es una máquina pequeña, es un proceso aislado. Cuando el proc
 
 ## Bloque 2 — Imagen, contenedor, capas y registro
 
-Los cuatro conceptos se entienden mejor con una analogía de programación orientada a objetos, que el alumnado ya domina:
+Los cuatro conceptos se entienden mejor con una analogía de programación orientada a objetos, que ya dominas:
 
 - **Imagen**: plantilla de solo lectura, como una *clase*. Contiene el sistema de ficheros y los metadatos (comando de arranque, puertos, variables de entorno).
 - **Contenedor**: instancia en ejecución de una imagen, como un *objeto*. De una misma imagen pueden salir muchos contenedores.
@@ -408,7 +408,7 @@ Pueden lanzarse oralmente o en un formulario rápido:
 - Respuestas a las preguntas de control de las partes B y D.
 - Tag `v1.1.1` subido a Gitea.
 
-**Enlace con la siguiente sesión:** hoy la imagen solo existe en el ordenador de cada alumno. En Docker II el siguiente paso natural es subirla a un registro, orquestar varios servicios y persistir datos con volúmenes, que es lo que luego necesitará Jenkins para construir y publicar la imagen automáticamente.
+**Enlace con la siguiente sesión:** hoy la imagen solo existe en tu ordenador. En Docker II el siguiente paso natural es subirla a un registro, orquestar varios servicios y persistir datos con volúmenes, que es lo que luego necesitará Jenkins para construir y publicar la imagen automáticamente.
 
 # 5. Lista de comprobación para evaluar (RA1.c)
 

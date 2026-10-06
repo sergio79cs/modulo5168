@@ -49,7 +49,7 @@ Conclusión: los resultados dependen del entorno; lo útil es comparar entre ver
 
 ## 2. Práctica
 
-Cada alumno termina con dos scripts que fallan con exit 1 cuando la prueba no se cumple.
+Terminarás con dos scripts que fallan con exit 1 cuando la prueba no se cumple.
 
 ### Paso 0 · Arrancar la aplicación
 
@@ -157,13 +157,11 @@ Jenkins corre en su propio contenedor, así que dentro de él `localhost` es Jen
 
 ## 3. Cierre
 
-Se comparan las tablas de concurrencia y cada alumno deja escrita su reflexión en el README.
+Compara tu tabla de concurrencia con las del resto y deja escrita tu reflexión en el README.
 
-| Tiempo | Actividad                                                                                                      |
-|--------|----------------------------------------------------------------------------------------------------------------|
-| 10'    | Puesta en común: ¿a partir de qué concurrencia sube el p95? ¿Por qué cambian los resultados entre ordenadores? |
-| 5'     | Reflexión individual en el README (preguntas abajo)                                                            |
-| 5'     | Subida de la entrega                                                                                           |
+1. Puesta en común: ¿a partir de qué concurrencia sube el p95? ¿Por qué cambian los resultados entre ordenadores?
+2. Reflexión individual en el README (preguntas abajo).
+3. Subida de la entrega.
 
 Preguntas de reflexión:
 

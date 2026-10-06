@@ -2,9 +2,9 @@
 
 # Módulo 5168 Definición de flujos de procesos de despliegue continuo · Sesión 2 — Calidad de código
 
-**Objetivo.** Al terminar, el alumnado sabrá qué es el análisis estático de código, instalará SonarQube en su equipo y analizará con él la aplicación de la sesión 1. Sabrá interpretar los issues que detecta, decidir de forma razonada si se corrigen o se aceptan, y entenderá qué es un Quality Gate. Es la pieza que, más adelante, el pipeline de Jenkins usará para impedir que llegue a producción código que no cumpla unos mínimos de calidad.
+**Objetivo.** Al terminar, sabrás qué es el análisis estático de código, instalarás SonarQube en tu equipo y analizarás con él la aplicación de la sesión 1. Sabrás interpretar los issues que detecta, decidir de forma razonada si se corrigen o se aceptan, y entenderás qué es un Quality Gate. Es la pieza que, más adelante, el pipeline de Jenkins usará para impedir que llegue a producción código que no cumpla unos mínimos de calidad.
 
-**Entorno de trabajo.** Se continúa con el laboratorio local de la sesión 1 (Docker y Gitea en el ordenador de cada alumno, red `lab5168`) y con el repositorio `saludo-app`. Hoy se añade un contenedor de SonarQube a la misma red.
+**Entorno de trabajo.** Se continúa con el laboratorio local de la sesión 1 (Docker y Gitea en tu ordenador, red `lab5168`) y con el repositorio `saludo-app`. Hoy se añade un contenedor de SonarQube a la misma red.
 
 ### Preparación previa
 
