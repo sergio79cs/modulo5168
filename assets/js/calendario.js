@@ -51,7 +51,7 @@ const UNIDADES = [
 ];
 
 const SESIONES = [
-  { ut: 1, n: 1, corto: "Git",         titulo: "Git avanzado",                                    criterio: "RA1.a",   url: "ut01/sesion1.html", dias: 1 },
+  { ut: 1, n: 1, corto: "Git",         titulo: "Git avanzado",                                    criterio: "RA1.a",   url: "ut01/sesion1.html", dias: 1, desde: "2026-10-06" },
   { ut: 1, n: 2, corto: "Calidad",     titulo: "Calidad de código",                               criterio: "RA1.b",   url: "ut01/sesion2.html", dias: 1 },
   { ut: 1, n: 3, corto: "Docker I",    titulo: "Docker I: imágenes, contenedores y caché de capas", criterio: "RA1.c", url: "ut01/sesion3.html", dias: 1 },
   { ut: 1, n: 4, corto: "Docker II",   titulo: "Docker II: builds multietapa",                    criterio: "RA1.c",   url: "ut01/sesion4.html", dias: 1 },
