@@ -35,21 +35,10 @@ Se plantea como pregunta abierta para el cierre. Hay tres opciones: el repositor
 
 ## 2. Práctica
 
-| Paso | Tiempo | Tarea                                           |
-|------|--------|-------------------------------------------------|
-| 0    | 10'    | Comprobaciones previas                          |
-| 1    | 20'    | Script para guardar resultados con metadatos    |
-| 2    | 20'    | Resultados de v1.0.0 y v1.1.0                   |
-| 3    | 35'    | Script de comparación                           |
-| 4    | 15'    | Versionar en Git                                |
-| 5    | 10'    | Margen para repetir mediciones o ponerse al día |
-
 ### Paso 0. Comprobaciones previas
 
 - `ab` está instalado: `ab -V`. En Debian/Ubuntu viene en el paquete `apache2-utils`.
-
-- La aplicación responde en `http://localhost:3000/`.
-
+- La aplicación responde en `http://localhost:3001/` (contenedor app de la sesión 6).
 - Existen las etiquetas de versión de sesiones anteriores: `git tag`.
 
 ### Paso 1. Script para guardar resultados con metadatos
@@ -61,7 +50,7 @@ Redirigir la salida sin más pierde stderr y no deja constancia del commit proba
 # Uso: ./guardar-resultados.sh v1.1.0
 set -euo pipefail
 V=${1:?Uso: $0 <version>}
-URL=http://localhost:3000/
+URL=http://localhost:3001/
 mkdir -p test-results
 
 {
@@ -145,17 +134,13 @@ Para quien vaya retrasado o quiera repetir mediciones y ver cuánto varían entr
 
 Cada grupo presenta la tabla que genera `comparar-carga.sh` y responde:
 
-1.  ¿Publicaríais la nueva versión? ¿Por qué?
-
-2.  ¿La diferencia es real o es ruido? ¿Qué pasaría si repetís la medición?
-
-3.  ¿Qué umbral es razonable y quién debería decidirlo?
+1. ¿Publicaríais la nueva versión? ¿Por qué?
+2. ¿La diferencia es real o es ruido? ¿Qué pasaría si repetís la medición?
+3. ¿Qué umbral es razonable y quién debería decidirlo?
 
 ### Debate: ¿deben ir los resultados en Git?
 
 A favor: es trazable y va junto al código que se ha probado. En contra: el repositorio crece y los resultados dependen de la máquina de cada alumno. Pregunta final: ¿quién debería ejecutar y guardar estas pruebas, cada desarrollador o el servidor de CI? Es el puente hacia Jenkins en las sesiones siguientes.
-
-### Ticket de salida
 
 Una frase por alumno: "Mi versión es / no es apta porque…", con al menos una cifra.
 

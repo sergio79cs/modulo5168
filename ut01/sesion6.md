@@ -27,9 +27,7 @@ Cualquier etapa con exit code distinto de 0 detiene el flujo.
 Verifican qué hace el software, normalmente como caja negra y contra un requisito. Responden a «¿hace lo que debe?».
 
 - Smoke test tras desplegar
-
 - Comprobar que `/version` devuelve la versión esperada
-
 - Flujo de login completo (extremo a extremo)
 
 ### Pruebas no funcionales
@@ -55,10 +53,12 @@ Cada alumno termina con dos scripts que fallan con exit 1 cuando la prueba no se
 
 ### Paso 0 · Arrancar la aplicación
 
-Levantar la app de sesiones anteriores y comprobar a mano:
+Levantar la app de sesiones anteriores y comprobar a mano. El contenedor se llama app y está en la red del laboratorio, para que la etapa de Jenkins de la ampliación lo encuentre por su nombre; se publica en el 3001 porque el 3000 del equipo es Gitea:
 
 ```
-curl http://localhost:3000/version
+docker rm -f test-app app 2>/dev/null
+docker run -d --name app --network lab5168 -p 3001:3000 modulo5168-app:v1.1.1
+curl http://localhost:3001/version
 ```
 
 ### Paso 1 · Prueba funcional con puerta de calidad
@@ -68,7 +68,7 @@ El script del guion original tiene dos fallos que conviene que descubran: da PAS
 ```
 #!/bin/bash
 # test-funcional.sh
-URL="${URL:-http://localhost:3000}"
+URL="${URL:-http://localhost:3001}"
 ESPERADA="${VERSION_ESPERADA:-1.0.0}"
 
 CODIGO=$(curl -s -o /tmp/resp.json -w '%{http_code}' "$URL/version")
@@ -89,11 +89,8 @@ fi
 ```
 
 - `-w '%{http_code}'` comprueba también el código HTTP.
-
-- El `*` del grep tolera JSON con espacio tras los dos puntos; el original fallaba con `"version": "1.0.0"`.
-
+- El  `*` del grep tolera JSON con espacio tras los dos puntos; el original fallaba con `"version": "1.0.0"`.
 - Las variables de entorno permiten reutilizar el script en Jenkins.
-
 - Alternativa más robusta si hay `jq`: `jq -r .version /tmp/resp.json`.
 
 ### Paso 2 · Prueba de carga con Apache Bench
@@ -102,9 +99,9 @@ Si no tienen `ab` instalado (paquete `apache2-utils` en Debian/Ubuntu), la image
 
 ```
 # Linux
-docker run --rm --network host httpd:2.4 ab -n 100 -c 10 http://localhost:3000/
+docker run --rm --network host httpd:2.4 ab -n 100 -c 10 http://localhost:3001/
 # Docker Desktop (Windows/Mac)
-docker run --rm httpd:2.4 ab -n 100 -c 10 http://host.docker.internal:3000/
+docker run --rm httpd:2.4 ab -n 100 -c 10 http://host.docker.internal:3001/
 ```
 
 `ab` exige la barra final en la URL; sin ella da «invalid URL».
@@ -112,7 +109,7 @@ docker run --rm httpd:2.4 ab -n 100 -c 10 http://host.docker.internal:3000/
 ```
 #!/bin/bash
 # test-carga.sh
-URL="${URL:-http://localhost:3000/}"
+URL="${URL:-http://localhost:3001/}"
 mkdir -p test-results
 ab -n 100 -c 10 "$URL" > test-results/carga.txt || { echo "FAIL: ab no pudo ejecutarse"; exit 1; }
 
@@ -136,9 +133,8 @@ Mientras se ejecuta, rellenan esta tabla con `-n 500` y distintas concurrencias.
 
 Deben ver fallar sus pruebas, no solo pasar.
 
-1.  Ejecutar `VERSION_ESPERADA=9.9.9 ./test-funcional.sh; echo $?`: debe mostrar FAIL y 1.
-
-2.  Parar la app y lanzar los dos scripts: ambos deben fallar.
+1. Ejecutar `VERSION_ESPERADA=9.9.9 ./test-funcional.sh; echo $?`: debe mostrar FAIL y 1.
+2. Parar la app y lanzar los dos scripts: ambos deben fallar.
 
 ### Ampliación · Etapa en Jenkins
 
@@ -157,7 +153,7 @@ stage('Pruebas') {
 }
 ```
 
-Jenkins corre en su propio contenedor, así que dentro de él `localhost` es Jenkins, no la app. La app y Jenkins deben compartir red Docker y usar el nombre del contenedor (aquí `app`). El contenedor de Jenkins necesita `ab` instalado.
+Jenkins corre en su propio contenedor, así que dentro de él `localhost` es Jenkins, no la app. La app y Jenkins deben compartir red Docker y usar el nombre del contenedor (aquí `app`). El contenedor de Jenkins necesita `ab` instalado. La imagen jenkins-lab de la guía de instalación ya lo incluye, y Jenkins debe estar en la red lab5168.
 
 ## 3. Cierre
 
@@ -171,9 +167,8 @@ Se comparan las tablas de concurrencia y cada alumno deja escrita su reflexión 
 
 Preguntas de reflexión:
 
-1.  ¿Qué pasaría en el pipeline si el script no devolviera exit 1 al fallar?
-
-2.  ¿Qué umbral pondrías como criterio de aceptación de rendimiento y por qué?
+1. ¿Qué pasaría en el pipeline si el script no devolviera exit 1 al fallar?
+2. ¿Qué umbral pondrías como criterio de aceptación de rendimiento y por qué?
 
 ## 4. Entregable y evaluación (RA1.e)
 

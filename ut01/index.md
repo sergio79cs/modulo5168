@@ -31,6 +31,9 @@ Cada sesión trabaja uno de sus criterios de evaluación:
 
 ## El laboratorio y la aplicación
 
+La [guía de instalación del laboratorio](../laboratorio/) explica cómo montar todo el entorno
+y trae el proyecto de ejemplo para descargar. Consúltala si algo no arranca.
+
 Todo el trabajo se hace **en tu propio ordenador**, sin servidor compartido.
 Iremos añadiendo contenedores a una misma red de Docker (`lab5168`) para que
 se encuentren entre sí por su nombre:

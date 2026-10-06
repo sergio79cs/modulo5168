@@ -26,7 +26,9 @@ sysctl vm.max_map_count          # debe ser 524288 o más
 sudo sysctl -w vm.max_map_count=524288
 ```
 
-El cambio con `sysctl -w` se pierde al reiniciar. Para hacerlo permanente, añade la línea `vm.max_map_count=524288` a `/etc/sysctl.conf`.
+El cambio con `sysctl -w` se pierde al reiniciar. Para hacerlo permanente, añade la línea
+
+`vm.max_map_count=524288` a `/etc/sysctl.conf`.
 
 ## 4.1 Teoría
 
@@ -47,7 +49,6 @@ El **análisis dinámico** observa el programa **mientras se ejecuta**: pruebas 
 SonarQube es una plataforma de análisis estático que admite una treintena de lenguajes. Tiene dos piezas:
 
 - **El servidor**, con interfaz web en el puerto 9000. Guarda los resultados de cada análisis, las reglas y la configuración, y muestra los problemas encontrados.
-
 - **El escáner** (`sonar-scanner`), que se ejecuta donde está el código: en el ordenador del desarrollador o, más adelante, en Jenkins. Analiza los ficheros y envía los resultados al servidor.
 
 El escáner se identifica ante el servidor con un **token**, una clave generada desde la interfaz web. Así no hace falta escribir usuario y contraseña en los scripts.
@@ -70,9 +71,7 @@ Cada issue lleva además una **severidad** (de mayor a menor impacto: *blocker*,
 Aparte de los issues, SonarQube mide:
 
 - **Duplicación**: porcentaje de líneas repetidas en varios sitios. El código duplicado obliga a corregir el mismo error varias veces.
-
 - **Cobertura**: porcentaje del código que recorren las pruebas automáticas. SonarQube no ejecuta las pruebas; lee el informe que generan otras herramientas. Hoy no tendremos cobertura: lo veremos cuando el pipeline ejecute pruebas.
-
 - **Deuda técnica**: estimación del tiempo necesario para corregir todos los *code smells*. Se traduce en una nota de mantenibilidad de A a E.
 
 ### Quality Profile y Quality Gate
@@ -80,7 +79,6 @@ Aparte de los issues, SonarQube mide:
 Dos conceptos que se confunden a menudo:
 
 - El **Quality Profile** es el **conjunto de reglas** que se aplica a un lenguaje: qué se comprueba. SonarQube trae uno por defecto para cada lenguaje, llamado *Sonar way*.
-
 - El **Quality Gate** es el **conjunto de condiciones mínimas** que debe cumplir el resultado del análisis: qué se exige. El resultado es binario: *Passed* (aprobado) o *Failed* (suspendido).
 
 Una condición típica de Quality Gate sería: "ningún bug nuevo", "cobertura del código nuevo de al menos el 80 %" o "duplicación del código nuevo por debajo del 3 %". Es la pieza que conecta con el despliegue continuo: en unas semanas, Jenkins consultará el Quality Gate y **detendrá el pipeline si sale suspendido**, igual que lo detendría una prueba fallida.
@@ -96,9 +94,7 @@ Consecuencia práctica, que veremos hoy: en el **primer análisis** de un proyec
 No todo issue se corrige sin pensar. Ante cada uno hay tres opciones, y la decisión debe quedar justificada en un comentario:
 
 - **Corregirlo** en el código. Es lo normal para bugs y vulnerabilidades.
-
 - **Aceptarlo**: es real, pero se decide no corregirlo por ahora (por ejemplo, código que se va a eliminar en breve). Queda registrado como deuda asumida.
-
 - **Marcarlo como falso positivo**: la regla no aplica en este caso concreto y se explica por qué.
 
 Marcar issues como falsos positivos para aprobar el Quality Gate es hacer trampa, y en un equipo real se detecta en la revisión. La justificación es lo que se evalúa en el entregable.
@@ -135,13 +131,10 @@ Abre `http://localhost:9000` y entra con el usuario `admin` y la contraseña `ad
 
 ### Paso 4. Crear el proyecto y el token
 
-1.  En la página inicial, elige crear un **proyecto local** (*Create a local project*).
-
-2.  Nombre y clave del proyecto: `modulo5168-app`. Rama principal: `main`.
-
-3.  En la definición de código nuevo, deja la opción global por defecto.
-
-4.  Como método de análisis, elige **Localmente** (*Locally*) y genera un **token**. Copia el valor en un sitio seguro: **solo se muestra una vez**.
+1. En la página inicial, elige crear un **proyecto local** (*Create a local project*).
+2. Nombre y clave del proyecto: `modulo5168-app`. Rama principal: `main`.
+3. En la definición de código nuevo, deja la opción global por defecto.
+4. Como método de análisis, elige **Localmente** (*Locally*) y genera un **token**. Copia el valor en un sitio seguro: **solo se muestra una vez**.
 
 El token es una credencial: no se sube al repositorio ni se pega en capturas. Si se pierde, se revoca y se genera otro desde *My Account → Security*.
 
@@ -233,7 +226,6 @@ docker run --rm \
 En PowerShell (Windows), sustituye `$(pwd)` por `${PWD}` y las barras invertidas del final de línea por el acento grave (`` ` ``), o escribe el comando en una sola línea.
 
 - La URL es `http://sonarqube:9000` y no `localhost`. Dentro de un contenedor, `localhost` es el propio contenedor, no tu ordenador; por eso el escáner encuentra el servidor por su nombre en la red `lab5168`.
-
 - El token se pasa con `sonar.token`. El parámetro antiguo `sonar.login` está obsoleto desde SonarQube 10.
 
 Si preferís instalar `sonar-scanner` en local, el comando es el mismo sin la parte de Docker y con `sonar.host.url=http://localhost:9000`.
@@ -245,11 +237,8 @@ El análisis termina con `EXECUTION SUCCESS` y un enlace al panel del proyecto.
 En `http://localhost:9000`, abre el proyecto `modulo5168-app` y recorre:
 
 - **Overview**: estado del Quality Gate y resumen por cualidad (fiabilidad, seguridad, mantenibilidad), duplicación y cobertura.
-
 - **Issues**: la lista de problemas. Al abrir uno, SonarQube muestra la línea afectada, explica por qué la regla existe y cómo corregirlo.
-
 - **Security Hotspots**: los puntos sensibles pendientes de revisar.
-
 - **Code**: el código con los issues marcados en su línea.
 
 ¿Qué dice el Quality Gate? Lo más probable es que *Sonar way* aparezca **aprobado** a pesar de los issues. Es lo que vimos en la teoría: en el primer análisis no hay código nuevo con el que comparar.
@@ -258,15 +247,11 @@ En `http://localhost:9000`, abre el proyecto `modulo5168-app` y recorre:
 
 Para que el gate controle también el código existente, cread uno nuevo:
 
-1.  Menú **Quality Gates → Create**. Nombre: `Aula 5168`.
-
-2.  Añadid condiciones sobre el **código total** (*Overall Code*):
-
-    - Nota de fiabilidad (*Reliability Rating*) peor que **A**.
-
-    - Porcentaje de *Security Hotspots* revisados menor que **100 %**.
-
-3.  Asignadlo al proyecto: en el proyecto, **Project Settings → Quality Gate**, elegid `Aula 5168`.
+1. Menú **Quality Gates → Create**. Nombre: `Aula 5168`.
+2. Añadid condiciones sobre el **código total** (*Overall Code*):
+   - Nota de fiabilidad (*Reliability Rating*) peor que **A**.
+   - Porcentaje de *Security Hotspots* revisados menor que **100 %**.
+3. Asignadlo al proyecto: en el proyecto, **Project Settings → Quality Gate**, elegid `Aula 5168`.
 
 Volved a lanzar el análisis (mismo comando del paso 3). Ahora el Quality Gate debe salir **suspendido** (*Failed*), indicando qué condiciones no se cumplen.
 
@@ -274,11 +259,9 @@ Volved a lanzar el análisis (mismo comando del paso 3). Ahora el Quality Gate d
 
 Ahora hay que conseguir que el gate apruebe, pero **decidiendo con criterio** qué se hace con cada problema:
 
-1.  **Bugs**: corregidlos en `utils.js`. Son errores reales; no tiene sentido aceptarlos.
-
-2.  **Security Hotspots**: revisad cada uno y elegid su estado con un comentario que lo justifique. Por ejemplo, la contraseña debe salir del código (leerla con `process.env.DB_PASSWORD`) y marcarse como corregida; `Math.random()` para un identificador de sesión no es seguro y debe sustituirse por `crypto.randomUUID()`.
-
-3.  **Code smells**: corregid los que sean fáciles. Si decidís aceptar alguno, dejadlo marcado como **aceptado** con un comentario que explique por qué.
+1. **Bugs**: corregidlos en `utils.js`. Son errores reales; no tiene sentido aceptarlos.
+2. **Security Hotspots**: revisad cada uno y elegid su estado con un comentario que lo justifique. Por ejemplo, la contraseña debe salir del código (leerla con `process.env.DB_PASSWORD`) y marcarse como corregida; `Math.random()` para un identificador de sesión no es seguro y debe sustituirse por `crypto.randomUUID()`.
+3. **Code smells**: corregid los que sean fáciles. Si decidís aceptar alguno, dejadlo marcado como **aceptado** con un comentario que explique por qué.
 
 Para cambiar el estado de un issue, abridlo y usad el desplegable de estado; el comentario se añade en el propio issue.
 

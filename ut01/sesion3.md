@@ -6,19 +6,16 @@
 
 Al acabar la sesión, el alumnado será capaz de:
 
-1.  Distinguir imagen, contenedor, capa y registro, y explicar la relación entre ellos.
-
-2.  Escribir un Dockerfile para una aplicación Node.js que aproveche la caché de capas.
-
-3.  Construir, etiquetar, ejecutar, inspeccionar y eliminar imágenes y contenedores desde la CLI.
-
-4.  Comprobar de forma objetiva que un contenedor está sano (`/health`, `HEALTHCHECK`).
+1. Distinguir imagen, contenedor, capa y registro, y explicar la relación entre ellos.
+2. Escribir un Dockerfile para una aplicación Node.js que aproveche la caché de capas.
+3. Construir, etiquetar, ejecutar, inspeccionar y eliminar imágenes y contenedores desde la CLI.
+4. Comprobar de forma objetiva que un contenedor está sano (`/health`, `HEALTHCHECK`).
 
 ## Requisitos previos
 
 Docker instalado y funcionando en cada equipo (`docker version` responde con cliente y servidor), el repositorio del laboratorio clonado desde Gitea y la aplicación en la versión v1.1.0.
 
-# 2. Teoría (50')
+# 2. Teoría
 
 ## Bloque 1 — ¿Por qué contenedores?
 
@@ -36,18 +33,15 @@ Conviene compararlo con una máquina virtual:
 | Arranque       | Minutos                       | Segundos o menos                  |
 | Aislamiento    | Muy fuerte                    | Fuerte, pero menor (mismo kernel) |
 
-**Idea clave para la pizarra:** un contenedor no es una máquina pequeña, es un proceso aislado. Cuando el proceso principal termina, el contenedor se para.
+un contenedor no es una máquina pequeña, es un proceso aislado. Cuando el proceso principal termina, el contenedor se para.
 
 ## Bloque 2 — Imagen, contenedor, capas y registro
 
 Los cuatro conceptos se entienden mejor con una analogía de programación orientada a objetos, que el alumnado ya domina:
 
 - **Imagen**: plantilla de solo lectura, como una *clase*. Contiene el sistema de ficheros y los metadatos (comando de arranque, puertos, variables de entorno).
-
 - **Contenedor**: instancia en ejecución de una imagen, como un *objeto*. De una misma imagen pueden salir muchos contenedores.
-
 - **Capa**: cada instrucción del Dockerfile que modifica el sistema de ficheros (`FROM`, `COPY`, `RUN`…) genera una capa. Una imagen es una pila de capas de solo lectura.
-
 - **Registro**: almacén de imágenes (Docker Hub, el registro de Gitea, uno privado de empresa). Es el equivalente a Gitea, pero para imágenes en vez de código.
 
 ```
@@ -62,13 +56,10 @@ Los cuatro conceptos se entienden mejor con una analogía de programación orien
  └─────────────────────────────────┘
 ```
 
-1.  **Las capas se comparten.** Si diez imágenes parten de `node:24-alpine`, esa capa base se descarga y almacena una sola vez.
-
-2.  **Los contenedores son efímeros.** Todo lo que se escribe dentro va a la capa de escritura y desaparece con `docker rm`. Los datos persistentes se guardan en volúmenes (se verá en Docker II).
-
-3.  **Las capas son inmutables.** Borrar un fichero en una capa posterior no reduce el tamaño de la imagen, porque el fichero sigue existiendo en la capa anterior. Esto justificará más adelante las builds multietapa.
-
-4.  **Etiquetas (tags).** `modulo5168-app:v1.1.0` enlaza con el versionado semántico de las sesiones anteriores. Evitad `latest` en despliegues, porque no dice qué versión se está ejecutando y rompe la trazabilidad del pipeline.
+1. **Las capas se comparten.** Si diez imágenes parten de `node:24-alpine`, esa capa base se descarga y almacena una sola vez.
+2. **Los contenedores son efímeros.** Todo lo que se escribe dentro va a la capa de escritura y desaparece con `docker rm`. Los datos persistentes se guardan en volúmenes (se verá en Docker II).
+3. **Las capas son inmutables.** Borrar un fichero en una capa posterior no reduce el tamaño de la imagen, porque el fichero sigue existiendo en la capa anterior. Esto justificará más adelante las builds multietapa.
+4. **Etiquetas (tags).** `modulo5168-app:v1.1.0` enlaza con el versionado semántico de las sesiones anteriores. Evitad `latest` en despliegues, porque no dice qué versión se está ejecutando y rompe la trazabilidad del pipeline.
 
 ## Bloque 3 — Anatomía de un Dockerfile
 
@@ -86,8 +77,7 @@ Los cuatro conceptos se entienden mejor con una analogía de programación orien
 Dos confusiones típicas que conviene atacar ya:
 
 - **\`RUN\` frente a \`CMD\`**: `RUN` se ejecuta al *construir* la imagen (instalar dependencias), mientras que `CMD` se ejecuta al *arrancar* el contenedor (lanzar la app).
-
-- **\`EXPOSE\` frente a \`-p\`**: `EXPOSE` solo documenta. Lo que realmente abre el puerto hacia el anfitrión es `docker run -p 3000:3000`, con el formato `puerto_anfitrión:puerto_contenedor`.
+- **\`EXPOSE\` frente a \`-p\`**: `EXPOSE` solo documenta. Lo que realmente abre el puerto hacia el anfitrión es `docker run -p 3001:3000`, con el formato `puerto_anfitrión:puerto_contenedor`. En nuestro laboratorio el 3000 del anfitrión lo ocupa Gitea, así que la aplicación se publica en el 3001.
 
 También hay que presentar el **contexto de build**: el punto final de `docker build -t ... .` indica la carpeta que se envía al motor de Docker. Todo lo que hay en ella puede copiarse a la imagen, y por eso existe `.dockerignore`, que funciona como un `.gitignore` para las builds.
 
@@ -122,7 +112,7 @@ CMD ["node", "server.js"]
 
 **Prueba en vivo.**
 
-Construye la versión mala, cambia un texto de `server.js` y reconstruye: el alumnado verá `npm ci` ejecutándose otra vez. Después haz lo mismo con la versión buena y enseña el `CACHED` en ese paso. Es el mismo experimento que harán en la práctica C, así que no te detengas en los tiempos, solo en el efecto.
+Construye la versión mala, cambia un texto de `server.js` y reconstruye: se verá `npm ci` ejecutándose otra vez. Después haz lo mismo con la versión buena y enseña el `CACHED` en ese paso. Es el mismo experimento que haréis en la práctica C.
 
 # 3. Práctica
 
@@ -223,22 +213,20 @@ Construcción y ejecución:
 ```
 docker build -t modulo5168-app:v1.1.0 .
 docker images modulo5168-app
-docker run -d -p 3000:3000 --name test-app modulo5168-app:v1.1.0
+docker run -d -p 3001:3000 --name test-app modulo5168-app:v1.1.0
 docker ps
-curl http://localhost:3000/health
+curl http://localhost:3001/health
 ```
 
 La respuesta esperada es algo como `{"status":"ok","version":"1.1.0","uptime":3.21}`.
 
-**Aviso para Windows:** en PowerShell, `curl` es un alias de `Invoke-WebRequest`. Usad `curl.exe http://localhost:3000/health` o abrid la URL en el navegador.
+**Aviso para Windows:** en PowerShell, `curl` es un alias de `Invoke-WebRequest`. Usad `curl.exe http://localhost:3001/health` o abrid la URL en el navegador.
 
 **Preguntas de control** (a responder en el documento de evidencias):
 
-1.  ¿Qué significa cada parte de `-p 3000:3000`? ¿Qué pasaría con `-p 8080:3000`? Probadlo.
-
-2.  ¿Qué hace `-d`? ¿Qué ocurre si lo quitáis?
-
-3.  ¿Cuánto ocupa la imagen? ¿De dónde sale la mayor parte de ese tamaño?
+1. ¿Qué significa cada parte de `-p 3001:3000`? ¿Qué pasaría con `-p 8080:3000`? Probadlo. ¿Y si intentáis publicar en el 3000?
+2. ¿Qué hace `-d`? ¿Qué ocurre si lo quitáis?
+3. ¿Cuánto ocupa la imagen? ¿De dónde sale la mayor parte de ese tamaño?
 
 ## Parte C — Experimento de caché
 
@@ -312,13 +300,11 @@ docker stats test-app --no-stream
 
 **Mini-reto de la capa de escritura:**
 
-1.  Entrad con `docker exec -it test-app sh` y cread un fichero: `echo hola > /tmp/prueba.txt`.
+1. Entrad con `docker exec -it test-app sh` y cread un fichero: `echo hola > /tmp/prueba.txt`.
+2. Parad y arrancad el contenedor (`docker stop test-app` y `docker start test-app`). ¿Sigue el fichero?
+3. Borradlo y cread uno nuevo desde la imagen (`docker rm -f test-app` y otra vez el `docker run`). ¿Sigue el fichero?
 
-2.  Parad y arrancad el contenedor (`docker stop test-app` y `docker start test-app`). ¿Sigue el fichero?
-
-3.  Borradlo y cread uno nuevo desde la imagen (`docker rm -f test-app` y otra vez el `docker run`). ¿Sigue el fichero?
-
-## Parte E — Mejoras: seguridad, salud y nueva versión (15')
+## Parte E — Mejoras: seguridad, salud y nueva versión
 
 Mejorad el Dockerfile con dos buenas prácticas y publicad una versión de parche.
 
@@ -354,9 +340,9 @@ Subid la versión a `1.1.1` en `package.json` (es un cambio que no añade funcio
 ```
 docker build -t modulo5168-app:v1.1.1 .
 docker rm -f test-app
-docker run -d -p 3000:3000 --name test-app modulo5168-app:v1.1.1
+docker run -d -p 3001:3000 --name test-app modulo5168-app:v1.1.1
 docker ps          # esperad unos segundos: STATUS debe mostrar (healthy)
-curl http://localhost:3000/health
+curl http://localhost:3001/health
 docker exec test-app whoami     # debe devolver "node"
 ```
 
@@ -371,11 +357,9 @@ git push origin main --tags
 
 ## Reto de ampliación (para quien acabe antes)
 
-1.  Comparad el tamaño de la imagen usando `node:24` en vez de `node:24-alpine`. ¿Cuánto cambia? ¿Qué se pierde con Alpine? Pista: no trae `bash` y usa `musl` en lugar de `glibc`.
-
-2.  Levantad dos contenedores de la misma imagen a la vez, en los puertos 3001 y 3002. ¿Por qué no pueden usar ambos el puerto 3000 del anfitrión?
-
-3.  Haced que la app falle a propósito (por ejemplo, que `/health` devuelva un error 500) y observad cómo `docker ps` pasa a mostrar `(unhealthy)`.
+1. Comparad el tamaño de la imagen usando `node:24` en vez de `node:24-alpine`. ¿Cuánto cambia? ¿Qué se pierde con Alpine? Pista: no trae `bash` y usa `musl` en lugar de `glibc`.
+2. Levantad dos contenedores de la misma imagen a la vez, en los puertos 3002 y 3003. ¿Por qué no pueden usar ambos el mismo puerto del anfitrión?
+3. Haced que la app falle a propósito (por ejemplo, que `/health` devuelva un error 500) y observad cómo `docker ps` pasa a mostrar `(unhealthy)`.
 
 ## Limpieza
 
@@ -389,51 +373,39 @@ docker image prune        # elimina imágenes huérfanas (<none>)
 
 ## Errores frecuentes y cómo resolverlos
 
-| Síntoma                                               | Causa probable                                          | Solución                                                                      |
-|-------------------------------------------------------|---------------------------------------------------------|-------------------------------------------------------------------------------|
-| `port is already allocated`                           | Otro contenedor o proceso usa el puerto 3000            | `docker ps` y parar el que lo usa, o publicar en otro puerto (`-p 3001:3000`) |
-| `Conflict... name "/test-app" is already in use`      | Existe un contenedor con ese nombre, aunque esté parado | `docker rm -f test-app`                                                       |
-| `curl: (52) Empty reply` o conexión rechazada         | La app escucha en `127.0.0.1` dentro del contenedor     | Escuchar en `0.0.0.0`                                                         |
-| El contenedor aparece como `Exited` nada más arrancar | La app ha fallado al iniciar                            | `docker logs test-app` para ver el error                                      |
-| `npm ci` falla: package-lock.json not found           | No se generó el lock                                    | `npm install` en local y volver a construir                                   |
-| La build es lenta y el contexto enorme                | Se está enviando `node_modules`                         | Revisar `.dockerignore`                                                       |
-| `curl` en PowerShell devuelve un objeto raro          | Alias de `Invoke-WebRequest`                            | Usar `curl.exe`                                                               |
-| `Cannot connect to the Docker daemon`                 | Docker Desktop o el servicio no están arrancados        | Arrancar Docker y repetir                                                     |
+| Síntoma                                               | Causa probable                                                  | Solución                                                                      |
+|-------------------------------------------------------|-----------------------------------------------------------------|-------------------------------------------------------------------------------|
+| `port is already allocated`                           | El puerto del anfitrión ya está en uso (el 3000 es el de Gitea) | `docker ps` y parar el que lo usa, o publicar en otro puerto (`-p 3001:3000`) |
+| `Conflict... name "/test-app" is already in use`      | Existe un contenedor con ese nombre, aunque esté parado         | `docker rm -f test-app`                                                       |
+| `curl: (52) Empty reply` o conexión rechazada         | La app escucha en `127.0.0.1` dentro del contenedor             | Escuchar en `0.0.0.0`                                                         |
+| El contenedor aparece como `Exited` nada más arrancar | La app ha fallado al iniciar                                    | `docker logs test-app` para ver el error                                      |
+| `npm ci` falla: package-lock.json not found           | No se generó el lock                                            | `npm install` en local y volver a construir                                   |
+| La build es lenta y el contexto enorme                | Se está enviando `node_modules`                                 | Revisar `.dockerignore`                                                       |
+| `curl` en PowerShell devuelve un objeto raro          | Alias de `Invoke-WebRequest`                                    | Usar `curl.exe`                                                               |
+| `Cannot connect to the Docker daemon`                 | Docker Desktop o el servicio no están arrancados                | Arrancar Docker y repetir                                                     |
 
 ## Preguntas de repaso
 
 Pueden lanzarse oralmente o en un formulario rápido:
 
-1.  ¿Qué diferencia hay entre una imagen y un contenedor?
-
-2.  Si cambias una línea de `server.js`, ¿qué capas se reconstruyen con el Dockerfile bueno? ¿Y con el malo?
-
-3.  ¿Por qué `COPY package*.json` va antes que `COPY . .`?
-
-4.  ¿Qué diferencia hay entre `RUN` y `CMD`?
-
-5.  ¿`EXPOSE 3000` hace accesible la app desde el navegador del anfitrión? ¿Qué lo hace?
-
-6.  ¿Qué pasa con los datos escritos dentro de un contenedor al eliminarlo?
-
-7.  ¿Por qué no conviene usar la etiqueta `latest` en un pipeline de despliegue?
-
-8.  ¿Qué ventaja de seguridad tiene la instrucción `USER node`?
-
-9.  ¿Por qué borrar un fichero en una capa posterior no reduce el tamaño de la imagen?
+1. ¿Qué diferencia hay entre una imagen y un contenedor?
+2. Si cambias una línea de `server.js`, ¿qué capas se reconstruyen con el Dockerfile bueno? ¿Y con el malo?
+3. ¿Por qué `COPY package*.json` va antes que `COPY . .`?
+4. ¿Qué diferencia hay entre `RUN` y `CMD`?
+5. ¿`EXPOSE 3000` hace accesible la app desde el navegador del anfitrión? ¿Qué lo hace?
+6. ¿Qué pasa con los datos escritos dentro de un contenedor al eliminarlo?
+7. ¿Por qué no conviene usar la etiqueta `latest` en un pipeline de despliegue?
+8. ¿Qué ventaja de seguridad tiene la instrucción `USER node`?
+9. ¿Por qué borrar un fichero en una capa posterior no reduce el tamaño de la imagen?
 
 ## Entrega y cierre
 
-**Entregable** (en Aules o en el repositorio de Gitea, dentro de `docs/sesion3.md`):
+**Entregable** (en Aules):
 
 - Dockerfile final y `.dockerignore`.
-
 - Captura de `docker ps` con el contenedor `(healthy)` y de la respuesta de `/health` con la versión 1.1.1.
-
 - Tabla del experimento de caché con la conclusión en dos o tres líneas.
-
 - Respuestas a las preguntas de control de las partes B y D.
-
 - Tag `v1.1.1` subido a Gitea.
 
 **Enlace con la siguiente sesión:** hoy la imagen solo existe en el ordenador de cada alumno. En Docker II el siguiente paso natural es subirla a un registro, orquestar varios servicios y persistir datos con volúmenes, que es lo que luego necesitará Jenkins para construir y publicar la imagen automáticamente.

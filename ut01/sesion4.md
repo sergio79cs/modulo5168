@@ -11,9 +11,7 @@
 Preguntas rápidas para enlazar con la sesión 3:
 
 - ¿Qué genera cada instrucción de un Dockerfile?
-
 - ¿Por qué copiamos `package*.json` antes que el resto del código?
-
 - ¿Qué diferencia hay entre imagen y contenedor?
 
 ## 6.1 Teoría
@@ -36,13 +34,9 @@ COPY --from=build /ruta/artefacto ./
 ### Buenas prácticas
 
 - **Imágenes base mínimas (alpine).** `node:20` pesa en torno a 1 GB; `node:20-alpine`, alrededor de 130 MB. Ojo: alpine usa `musl` en lugar de `glibc` y algunos módulos nativos pueden dar problemas. Alternativas: variantes `-slim` o imágenes distroless.
-
 - **Usuario no root.** Si alguien compromete la aplicación, no debe tener privilegios de root dentro del contenedor. Las imágenes oficiales de Node incluyen el usuario `node`.
-
 - **HEALTHCHECK.** Docker (y más adelante Kubernetes, con sus probes) puede saber si la app responde de verdad, no solo si el proceso está vivo.
-
-- **`.dockerignore`.** Evita meter `node_modules`, `.git`, etc. en el contexto de build.
-
+- `.dockerignore`**.** Evita meter `node_modules`, `.git`, etc. en el contexto de build.
 - **Solo dependencias de producción** (`npm ci --omit=dev`) y versiones de imagen fijadas (`node:20-alpine`, nunca `latest`).
 
 ## 6.2 Práctica — Comparativa single-stage vs multi-stage
@@ -111,7 +105,7 @@ npm-debug.log
 *.md
 ```
 
-### Paso 2. Versión single-stage (la "mala", a propósito)
+### Paso 2. Versión single-stage
 
 `Dockerfile.singlestage`
 
@@ -124,7 +118,7 @@ EXPOSE 3000
 CMD ["node", "src/index.js"]
 ```
 
-Antes de construir, el alumnado debe detectar al menos tres problemas: imagen base completa, ejecución como root, instala devDependencies, `COPY . .` antes de instalar rompe la caché y no hay healthcheck.
+Antes de construir, debis detectar al menos tres problemas: imagen base completa, ejecución como root, instala devDependencies, `COPY . .` antes de instalar rompe la caché y no hay healthcheck.
 
 ```
 docker build -f Dockerfile.singlestage -t modulo5168-app:singlestage .
@@ -185,15 +179,16 @@ docker run --rm modulo5168-app:v1.1.0 whoami
 ### Paso 5. Comprobar el HEALTHCHECK
 
 ```
-docker run -d --name app-single -p 3001:3000 modulo5168-app:singlestage
-docker run -d --name app-multi  -p 3002:3000 modulo5168-app:v1.1.0
+docker rm -f test-app 2>/dev/null     # el contenedor de la sesión 3, si sigue en marcha
+docker run -d --name app-single -p 3002:3000 modulo5168-app:singlestage
+docker run -d --name app-multi  -p 3003:3000 modulo5168-app:v1.1.0
 # esperar ~15 segundos
 docker ps
 ```
 
 En la columna STATUS, `app-multi` debe mostrar `(healthy)` y `app-single` no mostrará estado de salud. Para limpiar: `docker rm -f app-single app-multi`.
 
-### Paso 6 (ampliación). Caché
+### Paso 6. Caché
 
 Modificar una línea de `src/app.js`, reconstruir ambas imágenes con `time docker build ...` y comparar cuánto tarda cada una y qué capas se reaprovechan (`CACHED`). En la single-stage se reinstala todo; en la multi-stage, no.
 
@@ -203,39 +198,33 @@ Si el repositorio ya está en Gitea, es buen momento para hacer `git commit` y `
 
 Tabla comparativa rellenada con los datos reales obtenidos:
 
-| `singlestage`                       | `v1.1.0` (multi-stage) |     |
-|--------------------------------------------------|------------------------|-----|
-| Imagen base                                      |                        |     |
-| Tamaño (`docker images`)                         |                        |     |
-| Nº de capas (`docker history`)                   |                        |     |
-| Paquetes en `node_modules`                       |                        |     |
-| Usuario de ejecución                             |                        |     |
-| ¿Tiene HEALTHCHECK?                              |                        |     |
-| ¿Ejecuta tests en el build?                      |                        |     |
-| (Opcional) Tiempo de rebuild tras cambiar `src/` |                        |     |
+|                                                  | `singlestage` | `v1.1.0` (multi-stage) |
+|--------------------------------------------------|---------------|------------------------|
+| Imagen base                                      |               |                        |
+| Tamaño (`docker images`)                         |               |                        |
+| Nº de capas (`docker history`)                   |               |                        |
+| Paquetes en `node_modules`                       |               |                        |
+| Usuario de ejecución                             |               |                        |
+| ¿Tiene HEALTHCHECK?                              |               |                        |
+| ¿Ejecuta tests en el build?                      |               |                        |
+| (Opcional) Tiempo de rebuild tras cambiar `src/` |               |                        |
 
 A la tabla se añade una **conclusión razonada** (10-15 líneas) que responda a:
 
-1.  ¿Cuál es la reducción de tamaño en porcentaje y a qué se debe principalmente?
-
-2.  ¿Qué impacto tiene el tamaño en un flujo de despliegue continuo (push/pull al registro, tiempo de despliegue, almacenamiento)?
-
-3.  ¿Qué riesgos de seguridad elimina la versión multi-stage?
-
-4.  ¿Hay algún inconveniente o caso en que no usarías alpine?
+1. ¿Cuál es la reducción de tamaño en porcentaje y a qué se debe principalmente?
+2. ¿Qué impacto tiene el tamaño en un flujo de despliegue continuo (push/pull al registro, tiempo de despliegue, almacenamiento)?
+3. ¿Qué riesgos de seguridad elimina la versión multi-stage?
+4. ¿Hay algún inconveniente o caso en que no usarías alpine?
 
 ## 6.3 Puesta en común
 
-Dos o tres grupos comparten su tabla en pantalla y se contrastan cifras. Si hay diferencias grandes, suele ser por no haber usado `.dockerignore` o por haber copiado `node_modules` local.
+Dos o tres grupos comparten su tabla en pantalla y se contrastan cifras. Si hay diferencias grandes, suele ser por no haber usado  .dockerignore o por haber copiado `node_modules` local.
 
-Preguntas para dirigir el debate:
+Preguntas:
 
 - Si desplegamos 20 veces al día en 5 servidores, ¿cuántos GB se transfieren con cada versión?
-
 - ¿Por qué es buena idea que los tests se ejecuten dentro del build? ¿Qué pasaría en Jenkins si fallan?
-
 - ¿Qué haría Kubernetes con la información del HEALTHCHECK? (adelanto de liveness/readiness probes)
-
 - ¿Dónde quedan las etapas intermedias? (`docker images -a`, imágenes `<none>`; limpiar con `docker image prune`)
 
 ### Criterios de evaluación del entregable (RA1.c)

@@ -55,11 +55,8 @@ El puntero especial `HEAD` indica en qué rama (o commit) estás situado. Con `g
 ### Tipos de rama habituales
 
 - `main` (en repositorios antiguos, `master`): contiene el código que está, o puede estar en cualquier momento, en producción. Debe estar siempre en estado desplegable: compila, pasa las pruebas y funciona. Nadie trabaja directamente sobre ella; los cambios llegan mediante fusiones revisadas.
-
 - `feature/<nombre>`: desarrollo aislado de una funcionalidad concreta, por ejemplo `feature/login-google`. Se crea desde la rama principal y, al terminar, se propone su integración mediante una **Pull Request** (GitHub) o **Merge Request** (GitLab). Así otra persona revisa el código y el CI ejecuta las pruebas antes de fusionar.
-
 - `release/<versión>`: estabilización de una versión antes de publicarla, por ejemplo, `release/2.3.0`. En ella solo se corrigen errores menores y se ajusta documentación, mientras el resto del equipo sigue desarrollando.
-
 - `hotfix/<nombre>`: corrección urgente sobre lo que ya está en producción, por ejemplo, `hotfix/error-pago-nulo`. Se crea desde `main` (o desde la etiqueta desplegada), se publica una versión de parche y el arreglo se lleva también a las ramas de desarrollo.
 
 Los prefijos con barra (`feature/`, `hotfix/`…) no son obligatorios para Git, pero son una convención muy extendida. Permiten ver de un vistazo el propósito de cada rama. Además, muchos sistemas de CI aplican comportamientos distintos según el prefijo, por ejemplo, desplegar automáticamente solo las ramas `release/*`.
@@ -143,9 +140,7 @@ Una **etiqueta** es un nombre fijo asociado a un commit concreto, normalmente pa
 El formato de versión más extendido es el **versionado semántico (SemVer)**: `MAYOR.MENOR.PARCHE`, por ejemplo `2.4.1`.
 
 - **PARCHE**: se corrigen errores sin cambiar el comportamiento esperado.
-
 - **MENOR**: se añade funcionalidad nueva que no rompe nada existente.
-
 - **MAYOR**: cambio incompatible, que obliga a quien use el software a modificar su código o su forma de usarlo.
 
 Al subir un número, los de su derecha vuelven a cero: de `1.4.7` con una funcionalidad nueva se pasa a `1.5.0`.
@@ -194,6 +189,12 @@ cd saludo-app
 
 Git avisará de que el repositorio está vacío; es normal. Al hacer el primer `push` pedirá tu usuario y contraseña de Gitea.
 
+**Cómo crear los ficheros del laboratorio.** Usa Visual Studio Code: abre la carpeta del proyecto (File \> Open Folder), pulsa New File en el panel lateral y escribe el nombre completo (server.js, package.json, Dockerfile sin extensión). En Linux también puedes usar nano server.js (guardar con Ctrl+O y Enter, salir con Ctrl+X).
+
+No uses el Bloc de notas ni Word: el Bloc de notas añade .txt al nombre y Word cambia las comillas rectas por tipográficas, lo que rompe el package.json y los comandos. Al pegar código desde un documento, comprueba que las comillas son rectas (") y que no se han partido líneas.
+
+Los scripts .sh deben guardarse con finales de línea LF, no CRLF: en VS Code se cambia en la barra de abajo, donde pone CRLF. Con ls (o dir en Windows) comprueba que el fichero se llama exactamente como debe.
+
 Dentro de la carpeta, crea el fichero `server.js`: un servidor web mínimo en Node.js, sin dependencias externas.
 
 ```
@@ -208,7 +209,7 @@ const server = http.createServer((req, res) => {
 server.listen(PORT, () => console.log(`Servidor en http://localhost:${PORT}`));
 ```
 
-Comprueba que funciona con `node server.js` y abriendo `http://localhost:3000` en el navegador. Después, haz el commit inicial y marca la primera versión:
+Comprueba que funciona con `PORT=3001 node server.js` y abriendo `http://localhost:3001` en el navegador (en PowerShell: $env:PORT=3001; node server.js). El puerto 3000 ya lo usa Gitea, por eso la aplicación se ejecuta en el 3001. Para pararla, Ctrl+C. Después, haz el commit inicial y marca la primera versión:
 
 ```
 git add server.js
@@ -227,7 +228,7 @@ La opción `-b` crea la rama y te sitúa en ella en un solo paso (equivale a `gi
 
 ### Paso 2. Implementar la funcionalidad
 
-Modifica el servidor para que salude por el nombre recibido en la URL, por ejemplo `http://localhost:3000/?nombre=Ana`:
+Modifica el servidor para que salude por el nombre recibido en la URL, por ejemplo `http://localhost:3001/?nombre=Ana`:
 
 ```
 const server = http.createServer((req, res) => {
@@ -297,13 +298,10 @@ Cada alumno tiene su propio Gitea en local, así que la pareja necesita un remot
 
 **Variante A — En parejas, con el Gitea de uno de los dos.** La persona A comparte su Gitea y la persona B trabaja contra él por la red del aula.
 
-1.  A averigua la IP de su ordenador (`hostname -I` en Linux, `ipconfig` en Windows).
-
-2.  B abre `http://<IP-de-A>:3000` en su navegador y se registra en ese Gitea.
-
-3.  A añade a B como colaboradora con permiso de escritura: repositorio → *Configuración → Colaboradores*.
-
-4.  B clona escribiendo la IP a mano: `git clone http://<IP-de-A>:3000/<usuario-A>/saludo-app.git`. Los enlaces de clonado que muestra la web dirán `localhost`, porque así está configurado el Gitea de A; a B no le sirven.
+1. A averigua la IP de su ordenador (`hostname -I` en Linux, `ipconfig` en Windows).
+2. B abre `http://<IP-de-A>:3000` en su navegador y se registra en ese Gitea.
+3. A añade a B como colaboradora con permiso de escritura: repositorio → *Configuración → Colaboradores*.
+4. B clona escribiendo la IP a mano: `git clone http://<IP-de-A>:3000/<usuario-A>/saludo-app.git`. Los enlaces de clonado que muestra la web dirán `localhost`, porque así está configurado el Gitea de A; a B no le sirven.
 
 Requisitos: la red del aula debe permitir conexiones entre equipos y el cortafuegos del ordenador de A debe dejar pasar el puerto 3000.
 
@@ -405,13 +403,10 @@ git log v1.1.0..HEAD --oneline
 
 ### Cuestiones para discutir
 
-1.  ¿Qué versión corresponde al conjunto de los cuatro commits? *(Respuesta esperada: `v1.2.0`. El `feat` sube la MENOR y pone el PARCHE a cero; el `fix` queda incluido; `chore` y `docs` no afectan.)*
-
-2.  ¿Y si solo hubiera habido el `fix`, el `chore` y el `docs`? *(`v1.1.1`.)*
-
-3.  ¿Y si el `feat` hubiera sido `feat!: el saludo pasa a devolver JSON en lugar de texto`? *(`v2.0.0`: cualquier cliente que leyera texto plano dejaría de funcionar.)*
-
-4.  ¿Qué ventaja tiene que el pipeline pueda calcular esto solo, sin que nadie lo decida?
+1. ¿Qué versión corresponde al conjunto de los cuatro commits? *(Respuesta esperada:* `v1.2.0`*. El* `feat` *sube la MENOR y pone el PARCHE a cero; el* `fix` *queda incluido;* `chore` *y* `docs` *no afectan.)*
+2. ¿Y si solo hubiera habido el `fix`, el `chore` y el `docs`? *(*`v1.1.1`*.)*
+3. ¿Y si el `feat` hubiera sido `feat!: el saludo pasa a devolver JSON en lugar de texto`? *(*`v2.0.0`*: cualquier cliente que leyera texto plano dejaría de funcionar.)*
+4. ¿Qué ventaja tiene que el pipeline pueda calcular esto solo, sin que nadie lo decida?
 
 Para terminar, etiquetad la versión acordada y subidla con `git push origin main --tags`.
 
@@ -423,15 +418,11 @@ Para terminar, etiquetad la versión acordada y subidla con `git push origin mai
 
 ### Preguntas guía
 
-1.  ¿Cuántas personas trabajarán en el mismo repositorio y con qué frecuencia queremos desplegar?
-
-2.  ¿Necesitamos mantener varias versiones en producción a la vez, o solo existe "la versión actual"?
-
-3.  ¿Qué pasa con una rama de funcionalidad que vive dos semanas mientras `main` sigue avanzando? Relacionadlo con la práctica 2.
-
-4.  Si integramos a `main` varias veces al día, ¿qué necesitamos para que eso no rompa producción?
-
-5.  ¿Cómo encaja cada estrategia con un pipeline que despliega automáticamente cada vez que cambia `main`?
+1. ¿Cuántas personas trabajarán en el mismo repositorio y con qué frecuencia queremos desplegar?
+2. ¿Necesitamos mantener varias versiones en producción a la vez, o solo existe "la versión actual"?
+3. ¿Qué pasa con una rama de funcionalidad que vive dos semanas mientras `main` sigue avanzando? Relacionadlo con la práctica 2.
+4. Si integramos a `main` varias veces al día, ¿qué necesitamos para que eso no rompa producción?
+5. ¿Cómo encaja cada estrategia con un pipeline que despliega automáticamente cada vez que cambia `main`?
 
 ### Conclusión orientativa (para el docente)
 
