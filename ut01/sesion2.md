@@ -115,6 +115,8 @@ docker run -d --name sonarqube \
 
 Como en la sesión 1 con Gitea, los volúmenes conservan los proyectos y la configuración, aunque se borre el contenedor, y la red `lab5168` permitirá que el escáner (y más adelante Jenkins) encuentren el servidor por su nombre, `sonarqube`. La imagen usa una base de datos interna (H2) que no sirve para producción, pero es suficiente para el aula.
 
+Si `http://localhost:9000` no abre, mira `docker ps -a --filter name=sonar` y `docker logs --tail 30 sonarqube`. La causa habitual es `vm.max_map_count` bajo (el contenedor se para al arrancar) o falta de RAM (`Exited (137)`). El plugin SonarQube Scanner de Jenkins (sesión 9) solo es el conector: no instala el servidor, que es este contenedor.
+
 ### Paso 2. Esperar a que arranque
 
 El primer arranque tarda entre uno y tres minutos. Para seguirlo:

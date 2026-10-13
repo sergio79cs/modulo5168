@@ -383,6 +383,7 @@ docker image prune        # elimina imágenes huérfanas (<none>)
 | La build es lenta y el contexto enorme                | Se está enviando `node_modules`                                 | Revisar `.dockerignore`                                                       |
 | `curl` en PowerShell devuelve un objeto raro          | Alias de `Invoke-WebRequest`                                    | Usar `curl.exe`                                                               |
 | `Cannot connect to the Docker daemon`                 | Docker Desktop o el servicio no están arrancados                | Arrancar Docker y repetir                                                     |
+| `npm ci` o `npm install` falla con `EAI_AGAIN` o `Temporary failure resolving` | La red del centro bloquea el DNS público que Docker usa por defecto en los builds | Fijar el DNS de Docker (guía de instalación, paso 1): añadir la clave `dns` a `/etc/docker/daemon.json` sin borrar el resto y reiniciar Docker |
 
 ## Preguntas de repaso
 

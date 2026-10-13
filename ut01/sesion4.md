@@ -192,6 +192,8 @@ En la columna STATUS, `app-multi` debe mostrar `(healthy)` y `app-single` no mos
 
 Modificar una línea de `src/app.js`, reconstruir ambas imágenes con `time docker build ...` y comparar cuánto tarda cada una y qué capas se reaprovechan (`CACHED`). En la single-stage se reinstala todo; en la multi-stage, no.
 
+Si algún build falla con `EAI_AGAIN` o `Temporary failure resolving`, es el DNS de la red del centro: fija el DNS de Docker como indica el paso 1 de la guía de instalación (clave `dns` en `/etc/docker/daemon.json`, sin borrar el resto) y reinicia Docker.
+
 Si el repositorio ya está en Gitea, es buen momento para hacer `git commit` y `git tag v1.1.0`, de modo que la etiqueta de la imagen coincida con la del código.
 
 ## Entregable
