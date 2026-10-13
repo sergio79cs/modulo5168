@@ -95,6 +95,15 @@ docker run --rm alpine nslookup registry.npmjs.org
 
 Reiniciar Docker detiene los contenedores que ya existan. Si ya tienes alguno creado, sigue la rutina de la sección 12.
 
+**Si el DNS se pierde tras reiniciar o iniciar sesión.** En algunos equipos del aula el fichero `/etc/docker/daemon.json` se regenera y desaparece la línea `"dns"`. No lo sobrescribas (perderías `data-root`, `bip`, etc.): añade solo esa clave y reinicia Docker. Sustituye la IP por la del DNS del centro (por ejemplo `10.239.3.8`):
+
+```
+sudo python3 -c "import json;f='/etc/docker/daemon.json';d=json.load(open(f));d['dns']=['10.239.3.8'];json.dump(d,open(f,'w'),indent=2)"
+sudo systemctl restart docker
+```
+
+Si se vuelve a perder, hay que pedir al administrador que incluya el `dns` en la plantilla que genera ese fichero.
+
 ## 1bis. Instalar Gitea (servidor Git local)
 
 Gitea es el servidor Git del laboratorio, un GitHub en miniatura en tu propio equipo. Todas las prácticas lo usan como remoto; no se usa GitHub ni GitLab.
@@ -554,11 +563,32 @@ La UT01 (sesión 8) publica las versiones en el registry de Gitea (`localhost:30
 
 **6. SonarQube dentro de Jenkins (UT01, sesión 9)**
 
-La práctica integradora lanza el análisis con `withSonarQubeEnv('sonarqube')` y espera el resultado con `waitForQualityGate`. El servidor SonarQube se levanta en la sesión 2, en la red `lab5168`. En Jenkins hay que preparar tres cosas, y no se instala `sonar-scanner` en la imagen, porque el Jenkinsfile de la solución lo ejecuta como contenedor con `--volumes-from jenkins`:
+La práctica integradora lanza el análisis con `withSonarQubeEnv('sonarqube')` y espera el resultado con `waitForQualityGate`. El servidor SonarQube es un contenedor aparte (el plugin de Jenkins es solo el conector y no lo instala) y debe estar en la red `lab5168`. En Jenkins hay que preparar tres cosas, y no se instala `sonar-scanner` en la imagen, porque el Jenkinsfile de la solución lo ejecuta como contenedor con `--volumes-from jenkins`:
+
+**Crear el servidor SonarQube (si todavía no existe)**
+
+Comprueba primero con `docker ps -a --filter name=sonar`. Si no sale nada, créalo. El `sysctl` es imprescindible: sin él SonarQube se para al arrancar con el error `vm.max_map_count [65530] is too low`.
+
+```
+sudo sysctl -w vm.max_map_count=262144
+echo "vm.max_map_count=262144" | sudo tee /etc/sysctl.d/99-sonarqube.conf
+docker volume create sonarqube_data
+docker run -d --name sonarqube --network lab5168 \
+  --restart unless-stopped \
+  -p 9000:9000 \
+  -v sonarqube_data:/opt/sonarqube/data \
+  sonarqube:community
+```
+
+Tarda de 1 a 3 minutos en arrancar: `docker logs -f sonarqube` hasta ver `SonarQube is operational`. Después abre `http://localhost:9000` e inicia sesión con `admin` / `admin` (te pedirá cambiar la contraseña). Si el contenedor ya existía y estaba parado, basta `docker start sonarqube`. Necesita unos 2 GB de RAM libres: con `Exited (137)` o `Killed` en los logs, falta memoria.
 
 1. **Plugin.** En **Manage Jenkins \> Plugins \> Available plugins** instala **SonarQube Scanner**.
 2. **Servidor.** En SonarQube, **My Account \> Security**, genera un token. En Jenkins, crea una credencial de tipo **Secret text** con ese token (ID `sonar-token`). Después, en **Manage Jenkins \> System \> SonarQube servers**, añade un servidor con **Name** `sonarqube`, **Server URL** `http://sonarqube:9000` y esa credencial. El nombre tiene que ser exactamente `sonarqube`, porque el Jenkinsfile lo busca así.
 3. **Webhook de vuelta.** En SonarQube, **Administration \> Configuration \> Webhooks \> Create**, con URL `http://jenkins:8080/sonarqube-webhook/`. Sin él, `waitForQualityGate` se queda esperando.
+
+**Si no aparece «SonarQube servers».** Ese bloque está al final de **Manage Jenkins \> System** (no en Tools) y solo existe si el plugin está instalado y Jenkins se ha reiniciado después (`docker restart jenkins`, esperar un minuto y recargar con Ctrl+F5). Crea la credencial `sonar-token` antes de configurar el servidor; si no, el desplegable de autenticación sale vacío. El *Server URL* usa el nombre del contenedor (`http://sonarqube:9000`), nunca `localhost`.
+
+**Qué es el webhook.** Es un aviso automático de una aplicación a otra. Jenkins no pregunta cada pocos segundos si SonarQube ha terminado: SonarQube llama a Jenkins cuando acaba el análisis y le dice si el *quality gate* se ha aprobado. Sin el webhook nadie avisa y el pipeline se queda esperando. La URL lleva la barra final, y SonarQube y Jenkins deben estar en la misma red (`docker network connect lab5168 sonarqube` si falta). En la pantalla de Webhooks, la columna *Last delivery* indica si el aviso llegó.
 
 La sesión 9 también necesita la credencial `gitea-cred` (Username with password: tu usuario de Gitea y un token). Sirve para el checkout y para subir la imagen y el tag.
 
@@ -611,6 +641,38 @@ docker start jenkins
 
 Si un contenedor se creó sin reinicio automático, actívalo sin recrearlo con `docker update --restart unless-stopped jenkins` (o `gitea`, o `registry-fwd`).
 
+Lo mismo vale para `sonarqube` (ya lleva `--restart unless-stopped` si lo creaste con el comando del apartado 11bis.6).
+
+**Arranque automático al encender el equipo.** Docker y los contenedores con `--restart unless-stopped` arrancan solos si el servicio Docker está habilitado. Minikube no: hay que arrancarlo, y después reconectar Jenkins a su red (rutina de arriba).
+
+```
+sudo systemctl enable docker containerd
+```
+
+Para que Minikube arranque también solo, crea `/etc/systemd/system/minikube.service` (sustituye `USUARIO` por tu usuario) y actívalo:
+
+```
+[Unit]
+Description=Minikube
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=USUARIO
+ExecStart=/usr/local/bin/minikube start --driver=docker
+ExecStop=/usr/local/bin/minikube stop
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```
+sudo systemctl daemon-reload
+sudo systemctl enable --now minikube
+```
+
 ## 13. Solución de problemas comunes
 
 | Síntoma                                                                            | Causa probable                                                                                     | Solución                                                                                                                                                                                       |
@@ -639,6 +701,11 @@ Si un contenedor se creó sin reinicio automático, actívalo sin recrearlo con 
 | `ImagePullBackOff` en Kubernetes                                                   | El clúster no descarga la imagen del registry                                                      | Comprobar `curl http://localhost:5000/v2/_catalog`, que el addon está activo (`minikube addons list`) y que `registry-fwd` está en marcha                                                      |
 | El webhook no llega a Jenkins (error en Recent Deliveries de Gitea)                | Gitea bloquea webhooks hacia direcciones privadas, o la URL usa `localhost`                        | Arrancar Gitea con `GITEA__webhook__ALLOWED_HOST_LIST=private,loopback` y usar la URL `notifyCommit` del apartado 1bis, con método GET y Poll SCM activado en el Job                           |
 | Jenkins pide una contraseña que no recuerdas                                       | No se guardó la contraseña inicial                                                                 | `docker exec jenkins cat /var/jenkins_home/secrets/initialAdminPassword`                                                                                                                       |
+| El warmup falla en «Comprobar que la imagen arranca» con «container ... is not running» | El contenedor de prueba se para nada más arrancar. Suele ser que la copia de `lab/app` del alumno no coincide con el zip (`server.js`, `package.json` o `package-lock.json` vacíos o distintos) | Ver el motivo con `docker logs test-<N>` (el zip actual ya lo imprime en la propia etapa). Comprobar `wc -c lab/app/*`: `server.js` unos 1890 B, `package.json` 358 B, `package-lock.json` 33350 B. Si no cuadra, copiar otra vez `lab/app` del zip, commit y push |
+| Docker pierde el DNS tras reiniciar (`daemon.json` sin la clave `dns`) | En los equipos del aula el fichero `/etc/docker/daemon.json` se regenera | Añadir solo la clave `dns` sin borrar el resto (comando del paso 1) y reiniciar Docker; pedir al administrador que la incluya en la plantilla |
+| `http://localhost:9000` no abre (SonarQube) | El contenedor `sonarqube` no existe (el plugin de Jenkins no lo instala), aún está arrancando, o se ha parado por `vm.max_map_count` bajo o falta de RAM | `docker ps -a --filter name=sonar` y `docker logs --tail 30 sonarqube`; crearlo o arreglarlo según el apartado 11bis.6 |
+| No aparece el bloque «SonarQube servers» en Manage Jenkins \> System | El plugin SonarQube Scanner no está instalado, o Jenkins no se reinició después de instalarlo | Comprobarlo en Installed plugins, `docker restart jenkins` y recargar con Ctrl+F5; el bloque está al final de la página System |
+| `waitForQualityGate` se queda esperando para siempre | Falta el webhook de SonarQube hacia Jenkins, o SonarQube no está en la red `lab5168` | Crear el webhook `http://jenkins:8080/sonarqube-webhook/` (con la barra final) y `docker network connect lab5168 sonarqube` |
 
 **Problemas específicos de las UT 2 a 4**
 
