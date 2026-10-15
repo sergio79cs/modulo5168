@@ -14,6 +14,12 @@ Montas el laboratorio completo en tu ordenador: Docker, Gitea, Jenkins, Minikube
 - Ubuntu o Debian con acceso `sudo`. Es la opción probada y recomendada para el aula; con Windows o Mac habría que adaptar el paso del socket de Docker.
 - 8 GB de RAM como mínimo (16 GB recomendados), porque Jenkins, Gitea y Minikube funcionan a la vez.
 - Conexión a internet. En redes de centro puede hacer falta fijar el DNS de Docker (paso 1).
+- **Git** y **Node.js 18 o superior** en el equipo (las prácticas de las sesiones se ejecutan con `node server.js`). Comprueba con `git --version` y `node --version`. Si falta Node en Ubuntu o Debian, instala la 20 desde NodeSource (el paquete `nodejs` de apt es demasiado antiguo):
+
+```
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt-get install -y nodejs
+```
 
 **Reglas para copiar y pegar**
 
