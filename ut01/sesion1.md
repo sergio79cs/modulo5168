@@ -420,46 +420,70 @@ git push origin main
 
 **Objetivo:** escribir commits siguiendo la especificación y razonar qué versión semántica resultaría.
 
-Trabaja en `~/saludo-app`, el repositorio de la práctica 1, no en `persona-a` ni `persona-b`. Antes de empezar, ponlo al día con lo que subiste en la práctica 2:
+**Dónde trabajar.** En `~/saludo-app`, el repositorio de la práctica 1 (no en `persona-a` ni `persona-b`). Todos los comandos de esta práctica se escriben en esa carpeta. Primero, ponlo al día con lo que subiste en la práctica 2:
 
 ```
 cd ~/saludo-app
 git checkout main
 git pull origin main
+git tag
 ```
 
-Partiendo del estado actual (última etiqueta `v1.1.0`), haz cuatro cambios pequeños, cada uno en su propio commit con el tipo adecuado. Propuesta:
+El último comando debe mostrar `v1.0.0` y `v1.1.0`. Si no aparece `v1.1.0`, haz antes `git fetch --tags`.
+
+**Qué vas a hacer.** Cuatro cambios pequeños y distintos, **cada uno con su propio commit**. El tipo del commit (`feat`, `fix`, `chore`, `docs`) dice qué clase de cambio es, y de eso se deduce la versión. En cada cambio sigue siempre la misma secuencia: (a) hacer el cambio, (b) comprobar con `git status` que Git lo ve, (c) hacer el commit.
+
+**Cambio 1: feat (funcionalidad nueva).** Añade un endpoint `/hora` en `server.js`. Este comando inserta el bloque justo después de la línea `const url = new URL(...)`:
 
 ```
+sed -i '/const url = new URL/r /dev/stdin' server.js <<'EOF'
+  if (url.pathname === '/hora') {
+    res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+    return res.end(new Date().toISOString() + '\n');
+  }
+EOF
+git diff
+```
+
+`git diff` debe mostrar solo líneas nuevas (con `+`). Pruébalo: `PORT=3001 node server.js` y, en otra terminal, `curl localhost:3001/hora`. Para el servidor con Ctrl+C y haz el commit:
+
+```
+git status
 git commit -am "feat: añade endpoint /hora que devuelve la hora del servidor"
+```
+
+**Cambio 2: fix (corrección de un error).** Normaliza el nombre para que las tildes se codifiquen siempre igual. Este comando reemplaza la línea de `const nombre`:
+
+```
+sed -i "s/^  const nombre = .*/  const nombre = (url.searchParams.get('nombre') || 'mundo').normalize('NFC');/" server.js
+git diff
 git commit -am "fix: codifica correctamente nombres con tildes en el saludo"
-git commit -am "chore: añade .gitignore para node_modules"
-git commit -am "docs: añade README con instrucciones de arranque"
 ```
 
-Cada commit debe ir precedido del cambio real en el código. Para `chore` y `docs` recuerda hacer `git add` del fichero nuevo: `-a` solo incluye ficheros que Git ya conoce.
-
-Los cambios concretos, uno antes de cada commit. Edita con `nano server.js` y comprueba con `git status` que aparece `modified: server.js` antes de hacer el commit (`git commit -am` no hace nada si no hay cambios):
+**Cambio 3: chore (tarea de mantenimiento).** Aquí el fichero es **nuevo**, y `git commit -am` solo incluye ficheros que Git ya conoce. Por eso hay que añadirlo antes con `git add`:
 
 ```
-# 1) feat: en server.js, justo después de la línea const url = new URL(...), añade:
-#      if (url.pathname === '/hora') {
-#        res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
-#        return res.end(new Date().toISOString() + '\n');
-#      }
-# 2) fix: cambia la línea del nombre por:
-#      const nombre = (url.searchParams.get('nombre') || 'mundo').normalize('NFC');
-# 3) chore: crea el fichero nuevo
 echo "node_modules/" > .gitignore
-# 4) docs: crea el fichero nuevo
-printf '# saludo-app\n\nArranque: PORT=3001 node server.js\n' > README.md
+git status
+git add .gitignore
+git commit -m "chore: añade .gitignore para node_modules"
 ```
 
-Después, revisad en grupo qué ha pasado desde la última versión:
+**Cambio 4: docs (documentación).** Igual que el anterior, fichero nuevo:
+
+```
+printf '# saludo-app\n\nArranque: PORT=3001 node server.js\n' > README.md
+git add README.md
+git commit -m "docs: añade README con instrucciones de arranque"
+```
+
+**Comprobación.** Deben aparecer exactamente cuatro commits desde la última versión, cada uno con su tipo:
 
 ```
 git log v1.1.0..HEAD --oneline
 ```
+
+Si te falta alguno, mira con `git status` qué ha quedado sin commitear. Para sacar la versión no necesitas etiquetar nada: es la discusión de abajo.
 
 ### Cuestiones para discutir
 
