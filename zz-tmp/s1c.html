@@ -1,0 +1,429 @@
+<p><strong>Objetivo.</strong> Al terminar, sabrás trabajar con ramas siguiendo una estrategia definida, integrar cambios con merge y rebase, resolver conflictos y etiquetar versiones. También sabrás escribir commits que permitan calcular automáticamente la siguiente versión del software. Es la base sobre la que se construirá el pipeline de integración y despliegue continuo del módulo.</p>
+<p><strong>Entorno de trabajo.</strong> Todo el laboratorio del módulo se monta en local, en tu ordenador: Docker, Gitea, Jenkins y Kubernetes. En esta sesión solo se usa Gitea como servidor Git.</p>
+<h3 id="preparación-previa-gitea-en-local">Preparación previa: Gitea en local</h3>
+<p>Debe estar hecha antes de la sesión. Requisitos: Git, Node.js y Docker instalados.</p>
+<p><strong>1. Arrancar Gitea en un contenedor.</strong></p>
+<pre><code>docker network create lab5168   # solo la primera vez
+
+docker run -d --name gitea \
+  -p 3000:3000 -p 2222:22 \
+  -v gitea_data:/data \
+  --network lab5168 \
+  -e GITEA__webhook__ALLOWED_HOST_LIST=private,loopback \
+  --restart unless-stopped \
+  gitea/gitea:latest</code></pre>
+<p>Son los mismos comandos del paso 1bis de la guía de instalación del laboratorio. El volumen <code>gitea_data</code> conserva los repositorios, aunque se borre el contenedor, y la red <code>lab5168</code> permitirá más adelante que Jenkins encuentre a Gitea por su nombre. La variable <code>ALLOWED_HOST_LIST</code> no se usa hoy: deja preparado el envío de webhooks a Jenkins, que Gitea bloquea por defecto hacia direcciones locales y privadas.</p>
+<p><strong>2. Completar el asistente inicial.</strong></p>
+<p>Abre <code>http://localhost:3000</code>. Elige <strong>SQLite3</strong> como base de datos, deja el resto de los valores por defecto y crea la cuenta de administrador en el apartado final. Comprueba que la rama por defecto de los repositorios nuevos es <code>main</code>.</p>
+<p><strong>3. Configurar la identidad en Git</strong>, si no está hecha:</p>
+<pre><code>git config --global user.name &quot;Nombre Apellido&quot;
+git config --global user.email &quot;correo@ejemplo.com&quot;
+git config --global init.defaultBranch main</code></pre>
+<h2 id="31-teoría">3.1 Teoría</h2>
+<h3 id="por-qué-git-es-la-pieza-central-del-despliegue-continuo">Por qué Git es la pieza central del despliegue continuo</h3>
+<p>En un flujo de despliegue continuo, casi todo empieza en el repositorio. Cuando alguien hace <code>push</code> o se fusiona una Pull Request, el servidor de integración continua (en nuestro caso, Jenkins) detecta el cambio. Descarga el código, lo compila, ejecuta las pruebas y, si todo va bien, lo despliega.</p>
+<p>Por eso el repositorio es la <strong>única fuente de verdad</strong>: lo que hay en la rama principal es lo que acabará en producción. No basta con saber hacer <code>add</code>, <code>commit</code> y <code>push</code>. Hay que decidir cómo se organiza el trabajo en ramas, cómo se integran los cambios sin romper nada, cómo se marca qué versión está desplegada y cómo se describen los cambios para que una máquina pueda interpretarlos.</p>
+<h3 id="qué-es-realmente-una-rama">Qué es realmente una rama</h3>
+<p>Una rama en Git no es una copia del código: es un <strong>puntero móvil a un commit</strong>. Al crear una rama, Git solo crea una pequeña etiqueta que apunta al commit actual. Cada nuevo commit en esa rama hace avanzar el puntero, por eso crear ramas es instantáneo y barato.</p>
+<p>El puntero especial <code>HEAD</code> indica en qué rama (o commit) estás situado. Con <code>git checkout feature/x</code> (o su equivalente moderno <code>git switch feature/x</code>) cambias a dónde apunta <code>HEAD</code>. Git actualiza entonces los ficheros de tu directorio de trabajo para que coincidan con ese commit.</p>
+<h3 id="tipos-de-rama-habituales">Tipos de rama habituales</h3>
+<ul>
+<li><code>main</code> (en repositorios antiguos, <code>master</code>): contiene el código que está, o puede estar en cualquier momento, en producción. Debe estar siempre en estado desplegable: compila, pasa las pruebas y funciona. Nadie trabaja directamente sobre ella; los cambios llegan mediante fusiones revisadas.</li>
+<li><code>feature/&lt;nombre&gt;</code>: desarrollo aislado de una funcionalidad concreta, por ejemplo <code>feature/login-google</code>. Se crea desde la rama principal y, al terminar, se propone su integración mediante una <strong>Pull Request</strong> (GitHub) o <strong>Merge Request</strong> (GitLab). Así otra persona revisa el código y el CI ejecuta las pruebas antes de fusionar.</li>
+<li><code>release/&lt;versión&gt;</code>: estabilización de una versión antes de publicarla, por ejemplo, <code>release/2.3.0</code>. En ella solo se corrigen errores menores y se ajusta documentación, mientras el resto del equipo sigue desarrollando.</li>
+<li><code>hotfix/&lt;nombre&gt;</code>: corrección urgente sobre lo que ya está en producción, por ejemplo, <code>hotfix/error-pago-nulo</code>. Se crea desde <code>main</code> (o desde la etiqueta desplegada), se publica una versión de parche y el arreglo se lleva también a las ramas de desarrollo.</li>
+</ul>
+<p>Los prefijos con barra (<code>feature/</code>, <code>hotfix/</code>…) no son obligatorios para Git, pero son una convención muy extendida. Permiten ver de un vistazo el propósito de cada rama. Además, muchos sistemas de CI aplican comportamientos distintos según el prefijo, por ejemplo, desplegar automáticamente solo las ramas <code>release/*</code>.</p>
+<h3 id="estrategias-de-branching">Estrategias de branching</h3>
+<p>Una estrategia de branching es el acuerdo del equipo sobre qué ramas existen, cuánto duran y cómo fluyen los cambios entre ellas. No hay una correcta en abstracto: depende del proyecto y de la frecuencia de despliegue.</p>
+<p><strong>Git Flow</strong> es la más estructurada. Además de <code>main</code>, mantiene una rama permanente <code>develop</code> donde se integra el trabajo diario. Las <code>feature</code> salen de <code>develop</code> y vuelven a ella. Para publicar, se crea una <code>release</code> desde <code>develop</code>, se estabiliza y se fusiona tanto en <code>main</code> (etiquetando la versión) como de vuelta en <code>develop</code>. Los <code>hotfix</code> salen de <code>main</code> y se fusionan en ambas.</p>
+<p>Git Flow encaja con software de versiones planificadas: aplicaciones de escritorio, apps móviles que pasan revisión de la tienda o productos con varias versiones mantenidas. Su inconveniente es que las ramas viven mucho, las fusiones se vuelven grandes y conflictivas, y el código tarda en llegar a producción. Es justo lo contrario de lo que busca el despliegue continuo.</p>
+<p><strong>GitHub Flow</strong> simplifica lo anterior. Solo existe <code>main</code> y ramas de funcionalidad de vida corta. Cada cambio va en una rama, se abre una Pull Request, se revisa, el CI valida y, tras fusionar a <code>main</code>, se despliega. Funciona muy bien para aplicaciones web con un único entorno de producción.</p>
+<p><strong>Trunk-based development</strong> lleva la idea al extremo. Todo el equipo integra en <code>main</code> (el "tronco") con mucha frecuencia, al menos una vez al día, y las ramas duran horas o uno o dos días. Para integrar código aún no terminado sin que el usuario lo vea se usan <strong>feature flags</strong>: interruptores de configuración que activan o desactivan una funcionalidad. Es la estrategia que mejor encaja con el despliegue continuo, pero exige disciplina y una batería de pruebas automáticas fiable.</p>
+<table>
+<thead>
+<tr class="header">
+<th></th>
+<th>Git Flow</th>
+<th>GitHub Flow</th>
+<th>Trunk-based</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Ramas permanentes</td>
+<td><code>main</code> y <code>develop</code></td>
+<td><code>main</code></td>
+<td><code>main</code></td>
+</tr>
+<tr class="even">
+<td>Vida de las ramas de trabajo</td>
+<td>Semanas</td>
+<td>Días</td>
+<td>Horas o 1-2 días</td>
+</tr>
+<tr class="odd">
+<td>Frecuencia de despliegue</td>
+<td>Por versiones planificadas</td>
+<td>Tras cada fusión</td>
+<td>Varias veces al día</td>
+</tr>
+<tr class="even">
+<td>Complejidad</td>
+<td>Alta</td>
+<td>Baja</td>
+<td>Baja en ramas, alta en disciplina y pruebas</td>
+</tr>
+<tr class="odd">
+<td>Encaje con CD</td>
+<td>Bajo</td>
+<td>Bueno</td>
+<td>Muy bueno</td>
+</tr>
+</tbody>
+</table>
+<h3 id="merge-frente-a-rebase">Merge frente a rebase</h3>
+<p>Cuando una rama de funcionalidad está lista, hay que incorporar sus cambios a <code>main</code>. Hay dos formas de hacerlo. Supongamos que creamos <code>feature</code> desde el commit B y hicimos D y E, mientras alguien añadía C a <code>main</code>:</p>
+<pre><code>          D---E   feature
+         /
+    A---B---C     main</code></pre>
+<p><code>git merge</code> une las dos historias con un nuevo <strong>commit de fusión</strong> (M) que tiene dos padres. El historial conserva exactamente lo que pasó: hubo trabajo en paralelo y en un momento se juntó.</p>
+<pre><code>          D---E
+         /     \
+    A---B---C---M   main</code></pre>
+<p>Si la rama destino no ha avanzado (no existe C), Git hace un <em>fast-forward</em>: mueve el puntero de <code>main</code> hacia delante sin crear commit de fusión, y la rama "desaparece" del historial. Con <code>--no-ff</code> obligamos a crear siempre el commit de fusión. Así queda constancia de que esos commits formaron parte de una funcionalidad concreta; es la opción de la práctica 1.</p>
+<p><code>git rebase</code> toma los commits de tu rama y los vuelve a aplicar uno a uno encima del último commit de la rama destino. Es como si hubieras empezado a trabajar a partir de ahí:</p>
+<pre><code>              D&#39;--E&#39;   feature
+             /
+    A---B---C          main</code></pre>
+<p>El historial queda lineal y es más fácil de leer. Pero D' y E' <strong>no son</strong> los commits originales: tienen el mismo contenido, pero distinto padre y distinto identificador (hash). Rebase <strong>reescribe la historia</strong>.</p>
+<p><strong>Regla de oro:</strong> nunca hagas rebase de commits que ya has compartido y sobre los que otras personas pueden estar trabajando. Si otra persona tiene D y E y tú los sustituyes por D' y E', los historiales divergen. El uso seguro es hacer rebase de tu propia rama sobre <code>main</code> para ponerla al día antes de abrir la Pull Request.</p>
+<p>Si la rama ya estaba subida al remoto, tras un rebase Git rechazará un <code>push</code> normal porque el historial no coincide. Hay que forzarlo con <code>git push --force-with-lease</code>, la versión segura de <code>--force</code>. Solo sobrescribe si nadie más ha subido cambios a esa rama desde tu última descarga.</p>
+<h3 id="resolución-de-conflictos">Resolución de conflictos</h3>
+<p>Git combina automáticamente cambios de dos ramas siempre que afecten a partes distintas de los ficheros. El conflicto aparece cuando <strong>ambas ramas modifican las mismas líneas de forma diferente</strong>, o una borra un fichero que la otra modifica. Git no puede saber qué versión es la buena, así que se detiene y pide que decida una persona. Marca el fichero así:</p>
+<pre><code>&lt;&lt;&lt;&lt;&lt;&lt;&lt; HEAD
+  res.end(`Bienvenido, ${nombre}\n`);
+=======
+  res.end(`Buenos días, ${nombre}\n`);
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; feat: saludo con buenos días</code></pre>
+<p>Entre <code>&lt;&lt;&lt;&lt;&lt;&lt;&lt;</code> y <code>=======</code> está una versión; entre <code>=======</code> y <code>&gt;&gt;&gt;&gt;&gt;&gt;&gt;</code>, la otra. Atención: en un <strong>merge</strong>, <code>HEAD</code> es tu rama actual. En un <strong>rebase</strong>, <code>HEAD</code> es la rama sobre la que rebasas (por ejemplo <code>origin/main</code>) y la parte inferior son tus commits.</p>
+<p>Para resolverlo, edita el fichero, deja el código como debe quedar (una versión, la otra o una combinación) y <strong>borra todas las marcas</strong>. Después indica que está resuelto con <code>git add</code> y continúa con <code>git merge --continue</code> o <code>git rebase --continue</code>. Si se complica, <code>git merge --abort</code> o <code>git rebase --abort</code> devuelven al estado anterior.</p>
+<p>Los conflictos no se eliminan, pero se reducen mucho con ramas cortas, integraciones frecuentes y comunicación en el equipo. Es uno de los argumentos a favor del trunk-based development.</p>
+<h3 id="etiquetas-tags-y-versionado-semántico">Etiquetas (tags) y versionado semántico</h3>
+<p>Una <strong>etiqueta</strong> es un nombre fijo asociado a un commit concreto, normalmente para marcar una versión publicada (<code>v1.0.0</code>, <code>v1.1.0</code>…). A diferencia de una rama, no se mueve. Las etiquetas ligeras son solo un nombre; las <strong>anotadas</strong> (<code>git tag -a</code>) guardan además autor, fecha y mensaje, y son las que se usan para versiones. Muchos pipelines de despliegue se disparan al crear una etiqueta.</p>
+<p>El formato de versión más extendido es el <strong>versionado semántico (SemVer)</strong>: <code>MAYOR.MENOR.PARCHE</code>, por ejemplo <code>2.4.1</code>.</p>
+<ul>
+<li><strong>PARCHE</strong>: se corrigen errores sin cambiar el comportamiento esperado.</li>
+<li><strong>MENOR</strong>: se añade funcionalidad nueva que no rompe nada existente.</li>
+<li><strong>MAYOR</strong>: cambio incompatible, que obliga a quien use el software a modificar su código o su forma de usarlo.</li>
+</ul>
+<p>Al subir un número, los de su derecha vuelven a cero: de <code>1.4.7</code> con una funcionalidad nueva se pasa a <code>1.5.0</code>.</p>
+<h3 id="commits-convencionales">Commits convencionales</h3>
+<p>La especificación <strong>Conventional Commits</strong> define un formato de mensaje legible para personas y herramientas:</p>
+<pre><code>&lt;tipo&gt;(&lt;ámbito opcional&gt;): &lt;descripción breve&gt;
+
+&lt;cuerpo opcional&gt;
+
+&lt;pie opcional&gt;</code></pre>
+<p>Ejemplos: <code>feat(api): añade endpoint de búsqueda por nombre</code> o <code>fix: evita error cuando el parámetro nombre está vacío</code>.</p>
+<table>
+<thead>
+<tr class="header">
+<th>Tipo</th>
+<th>Significado</th>
+<th>Efecto en la versión</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>feat</code></td>
+<td>Nueva funcionalidad</td>
+<td>Sube MENOR</td>
+</tr>
+<tr class="even">
+<td><code>fix</code></td>
+<td>Corrección de un error</td>
+<td>Sube PARCHE</td>
+</tr>
+<tr class="odd">
+<td><code>docs</code></td>
+<td>Solo documentación</td>
+<td>Ninguno</td>
+</tr>
+<tr class="even">
+<td><code>style</code></td>
+<td>Formato, espacios… sin cambiar lógica</td>
+<td>Ninguno</td>
+</tr>
+<tr class="odd">
+<td><code>refactor</code></td>
+<td>Reestructura sin cambiar comportamiento</td>
+<td>Ninguno</td>
+</tr>
+<tr class="even">
+<td><code>test</code></td>
+<td>Añade o corrige pruebas</td>
+<td>Ninguno</td>
+</tr>
+<tr class="odd">
+<td><code>chore</code></td>
+<td>Mantenimiento (dependencias, configuración)</td>
+<td>Ninguno</td>
+</tr>
+<tr class="even">
+<td><code>ci</code></td>
+<td>Cambios en la configuración del pipeline</td>
+<td>Ninguno</td>
+</tr>
+</tbody>
+</table>
+<p>Un <strong>cambio incompatible</strong> se indica con <code>!</code> tras el tipo (<code>feat!: elimina el endpoint /v1/saludo</code>) o con <code>BREAKING CHANGE: &lt;explicación&gt;</code> en el pie. Cualquiera de las dos formas sube la versión MAYOR, sea cual sea el tipo.</p>
+<p>¿Por qué importa en despliegue continuo? Si los mensajes siguen el formato, herramientas como <em>semantic-release</em> leen los commits desde la última etiqueta y calculan la siguiente versión. También generan el <code>CHANGELOG</code> y crean la etiqueta, todo dentro del pipeline. Con varios commits manda el de mayor impacto: un <code>fix</code> y un <code>feat</code> suben la MENOR.</p>
+<h2 id="32-práctica-1--ramas-merge-y-tags">3.2 Práctica 1 — Ramas, merge y tags</h2>
+<p><strong>Objetivo:</strong> crear una rama de funcionalidad, fusionarla en <code>main</code> conservando la traza de la rama, etiquetar la nueva versión y subir todo al repositorio remoto.</p>
+<h3 id="preparación">Preparación</h3>
+<p>En tu Gitea local (<code>http://localhost:3000</code>), crea un repositorio nuevo con el botón <strong>+ → Nuevo repositorio</strong>, por ejemplo <code>saludo-app</code>. Déjalo vacío: sin README, sin .gitignore ni licencia. Después, clónalo:</p>
+<pre><code>git clone http://localhost:3000/&lt;tu-usuario&gt;/saludo-app.git
+cd saludo-app</code></pre>
+<p>Git avisará de que el repositorio está vacío; es normal. Al hacer el primer <code>push</code> pedirá tu usuario y contraseña de Gitea.</p>
+<p><strong>Cómo crear los ficheros del laboratorio.</strong> Usa Visual Studio Code: abre la carpeta del proyecto (File &gt; Open Folder), pulsa New File en el panel lateral y escribe el nombre completo (server.js, package.json, Dockerfile sin extensión). En Linux también puedes usar nano server.js (guardar con Ctrl+O y Enter, salir con Ctrl+X).</p>
+<p>No uses el Bloc de notas ni Word: el Bloc de notas añade .txt al nombre y Word cambia las comillas rectas por tipográficas, lo que rompe el package.json y los comandos. Al pegar código desde un documento, comprueba que las comillas son rectas (") y que no se han partido líneas.</p>
+<p>Los scripts .sh deben guardarse con finales de línea LF, no CRLF: en VS Code se cambia en la barra de abajo, donde pone CRLF. Con ls (o dir en Windows) comprueba que el fichero se llama exactamente como debe.</p>
+<p>Dentro de la carpeta, crea el fichero <code>server.js</code>: un servidor web mínimo en Node.js, sin dependencias externas.</p>
+<pre><code>const http = require(&#39;http&#39;);
+const PORT = process.env.PORT || 3000;
+
+const server = http.createServer((req, res) =&gt; {
+  res.writeHead(200, { &#39;Content-Type&#39;: &#39;text/plain; charset=utf-8&#39; });
+  res.end(&#39;Hola, mundo\n&#39;);
+});
+
+server.listen(PORT, () =&gt; console.log(`Servidor en http://localhost:${PORT}`));</code></pre>
+<p>Comprueba que funciona con <code>PORT=3001 node server.js</code> y abriendo <code>http://localhost:3001</code> en el navegador (en PowerShell: $env:PORT=3001; node server.js). El puerto 3000 ya lo usa Gitea, por eso la aplicación se ejecuta en el 3001. Para pararla, Ctrl+C. Después, haz el commit inicial y marca la primera versión:</p>
+<pre><code>git add server.js
+git commit -m &quot;feat: servidor HTTP básico&quot;
+git tag -a v1.0.0 -m &quot;Primera versión&quot;
+git push origin main --tags</code></pre>
+<h3 id="paso-1-crear-la-rama-de-funcionalidad">Paso 1. Crear la rama de funcionalidad</h3>
+<pre><code>git checkout -b feature/saludo-personalizado</code></pre>
+<p>La opción <code>-b</code> crea la rama y te sitúa en ella en un solo paso (equivale a <code>git switch -c</code>). Compruébalo con <code>git branch</code>: la rama activa aparece marcada con un asterisco.</p>
+<h3 id="paso-2-implementar-la-funcionalidad">Paso 2. Implementar la funcionalidad</h3>
+<p>Modifica el servidor para que salude por el nombre recibido en la URL, por ejemplo <code>http://localhost:3001/?nombre=Ana</code>:</p>
+<pre><code>const server = http.createServer((req, res) =&gt; {
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const nombre = url.searchParams.get(&#39;nombre&#39;) || &#39;mundo&#39;;
+  res.writeHead(200, { &#39;Content-Type&#39;: &#39;text/plain; charset=utf-8&#39; });
+  res.end(`Hola, ${nombre}\n`);
+});</code></pre>
+<p>Prueba que funciona con y sin el parámetro antes de hacer commit. Es un buen hábito: no se sube lo que no se ha probado.</p>
+<h3 id="paso-3-hacer-commit-en-la-rama">Paso 3. Hacer commit en la rama</h3>
+<pre><code>git add server.js
+git commit -m &quot;feat: saludo personalizado por query param&quot;</code></pre>
+<p>El mensaje ya sigue el formato de commits convencionales.</p>
+<h3 id="paso-4-volver-a-main-y-fusionar">Paso 4. Volver a main y fusionar</h3>
+<pre><code>git checkout main
+git merge --no-ff feature/saludo-personalizado</code></pre>
+<p>Como <code>main</code> no ha avanzado, Git podría hacer un <em>fast-forward</em>. Con <code>--no-ff</code> le obligamos a crear un commit de fusión, de modo que el historial muestra que el cambio vino de una rama de funcionalidad. Git abrirá el editor para el mensaje de fusión; puedes dejar el que propone.</p>
+<h3 id="paso-5-etiquetar-y-publicar">Paso 5. Etiquetar y publicar</h3>
+<pre><code>git tag -a v1.1.0 -m &quot;Añade saludo personalizado&quot;
+git push origin main --tags</code></pre>
+<p>Hemos añadido funcionalidad sin romper nada, así que según SemVer se pasa de <code>1.0.0</code> a <code>1.1.0</code>. Ojo: <code>git push</code> por defecto <strong>no sube las etiquetas</strong>, por eso se añade <code>--tags</code>.</p>
+<h3 id="paso-6-visualizar-el-resultado">Paso 6. Visualizar el resultado</h3>
+<pre><code>git log --oneline --graph --all</code></pre>
+<p>Deberías ver algo parecido a esto (los identificadores cambiarán):</p>
+<pre><code>*   8c1f2e3 (HEAD -&gt; main, tag: v1.1.0, origin/main) Merge branch &#39;feature/saludo-personalizado&#39;
+|\
+| * 4b7a9d0 (feature/saludo-personalizado) feat: saludo personalizado por query param
+|/
+* 1e5c3a2 (tag: v1.0.0) feat: servidor HTTP básico</code></pre>
+<p><strong>Entregable:</strong> captura de la salida de <code>git log --oneline --graph --all</code> donde se vean la rama, el commit de fusión y las dos etiquetas.</p>
+<p><strong>Para pensar:</strong> ¿qué habría mostrado el log sin <code>--no-ff</code>? Si hay tiempo, repítelo en otra rama sin esa opción y compara.</p>
+<h2 id="33-práctica-2--conflictos-y-rebase">3.3 Práctica 2 — Conflictos y rebase</h2>
+<p><strong>Objetivo:</strong> provocar un conflicto real entre dos personas, resolverlo durante un rebase y entender cómo queda el historial.</p>
+<h3 id="preparación-dos-variantes">Preparación: dos variantes</h3>
+<p>Cada persona tiene su propio Gitea en local, así que la pareja necesita un remoto común para que el conflicto sea real. Hay dos variantes: usa la A si la red del aula permite conectar los equipos entre sí y, si no, la B.</p>
+<p><strong>Variante A — En parejas, con el Gitea de uno de los dos.</strong> La persona A comparte su Gitea y la persona B trabaja contra él por la red del aula.</p>
+<ol type="1">
+<li>A averigua la IP de su ordenador (<code>hostname -I</code> en Linux, <code>ipconfig</code> en Windows).</li>
+<li>B abre <code>http://&lt;IP-de-A&gt;:3000</code> en su navegador y se registra en ese Gitea.</li>
+<li>A añade a B como colaboradora con permiso de escritura: repositorio → <em>Configuración → Colaboradores</em>.</li>
+<li>B clona escribiendo la IP a mano: <code>git clone http://&lt;IP-de-A&gt;:3000/&lt;usuario-A&gt;/saludo-app.git</code>. Los enlaces de clonado que muestra la web dirán <code>localhost</code>, porque así está configurado el Gitea de A; a B no le sirven.</li>
+</ol>
+<p>Requisitos: la red del aula debe permitir conexiones entre equipos y el cortafuegos del ordenador de A debe dejar pasar el puerto 3000.</p>
+<p><strong>Variante B — Individual, simulando a dos personas.</strong> Clona tu propio repositorio dos veces, en carpetas distintas, y da a cada copia una identidad diferente:</p>
+<pre><code>git clone http://localhost:3000/&lt;tu-usuario&gt;/saludo-app.git persona-a
+git clone http://localhost:3000/&lt;tu-usuario&gt;/saludo-app.git persona-b
+git -C persona-a config user.name &quot;Persona A&quot;
+git -C persona-b config user.name &quot;Persona B&quot;</code></pre>
+<p>En los pasos siguientes, "persona A" y "persona B" son esas dos carpetas: se cambia de carpeta en lugar de cambiar de compañero. El conflicto y el rebase son idénticos; solo se pierde la coordinación con otra persona.</p>
+<p>Haz los dos <code>git clone</code> desde tu carpeta personal (<code>cd ~</code>), no desde dentro de <code>saludo-app</code>: <code>persona-a</code>, <code>persona-b</code> y <code>saludo-app</code> deben quedar una al lado de la otra. Entra en cada carpeta con <code>cd ~/persona-a</code> o <code>cd ~/persona-b</code>: los comandos de Git actúan sobre la carpeta en la que estás.</p>
+<h3 id="paso-1-cada-persona-crea-su-rama-desde-el-mismo-main">Paso 1. Cada persona crea su rama desde el mismo main</h3>
+<pre><code># Persona A
+git checkout -b feature/saludo-bienvenida
+
+# Persona B
+git checkout -b feature/saludo-buenos-dias</code></pre>
+<h3 id="paso-2-ambas-modifican-la-misma-línea">Paso 2. Ambas modifican la misma línea</h3>
+<p>Las dos editan la línea del <code>res.end(...)</code> en <code>server.js</code>. La persona A cambia "Hola" por "Bienvenido"; la persona B, por "Buenos días".</p>
+<p><code>git commit -am</code> solo guarda cambios que ya existen: antes de cada commit hay que modificar de verdad el fichero, <strong>dentro de la carpeta de esa persona</strong>. Puedes editar <code>server.js</code> con <code>nano</code>, o hacerlo con <code>sed</code>. Comprueba con <code>git diff</code> que el cambio aparece antes de hacer el commit:</p>
+<pre><code>cd ~/persona-a
+sed -i &#39;s/Hola, /Bienvenido, /&#39; server.js
+git diff
+
+cd ~/persona-b
+sed -i &#39;s/Hola, /Buenos días, /&#39; server.js
+git diff</code></pre>
+<p>Cada una hace su commit:</p>
+<pre><code># Persona A
+git commit -am &quot;feat: saludo de bienvenida&quot;
+
+# Persona B
+git commit -am &quot;feat: saludo con buenos días&quot;</code></pre>
+<h3 id="paso-3-la-persona-a-integra-primero">Paso 3. La persona A integra primero</h3>
+<p>Sube su rama, abre una Pull Request y la fusiona en <code>main</code>. Para ir más rápido en clase, también puede fusionar en local y subir <code>main</code>. Desde ese momento, <code>main</code> en el remoto contiene "Bienvenido".</p>
+<p>Los comandos, desde la carpeta de la persona A:</p>
+<pre><code>cd ~/persona-a
+git push origin feature/saludo-bienvenida
+git checkout main
+git merge --no-ff --no-edit feature/saludo-bienvenida
+git push origin main</code></pre>
+<h3 id="paso-4-la-persona-b-se-pone-al-día-con-rebase">Paso 4. La persona B se pone al día con rebase</h3>
+<pre><code>git fetch origin
+git rebase origin/main</code></pre>
+<p><code>git fetch</code> descarga los cambios del remoto sin tocar tu trabajo. <code>git rebase origin/main</code> intenta reaplicar tu commit encima del <code>main</code> actualizado. Como ambas modificaron la misma línea, Git se detendrá con un mensaje como <code>CONFLICT (content): Merge conflict in server.js</code>. Con <code>git status</code> verás el fichero marcado como <em>both modified</em>.</p>
+<h3 id="paso-5-resolver-el-conflicto">Paso 5. Resolver el conflicto</h3>
+<p>Abre <code>server.js</code> y localiza las marcas <code>&lt;&lt;&lt;&lt;&lt;&lt;&lt;</code>, <code>=======</code> y <code>&gt;&gt;&gt;&gt;&gt;&gt;&gt;</code>. En un rebase, la parte de arriba (<code>HEAD</code>) es lo que ya está en <code>main</code> (el cambio de tu compañero) y la de abajo es tu commit.</p>
+<p>La pareja debe <strong>decidir juntos</strong> cómo queda: una versión, la otra o una combinación (por ejemplo, "Buenos días" por la mañana y "Bienvenido" el resto del día). Edita el fichero, elimina todas las marcas y comprueba que el servidor arranca.</p>
+<h3 id="paso-6-marcar-como-resuelto-y-continuar">Paso 6. Marcar como resuelto y continuar</h3>
+<pre><code>git add server.js
+git rebase --continue</code></pre>
+<p>Si os perdéis, <code>git rebase --abort</code> devuelve la rama al estado anterior al rebase y podéis empezar de nuevo.</p>
+<h3 id="paso-7-subir-la-rama">Paso 7. Subir la rama</h3>
+<p>Si la persona B no había subido antes su rama, basta con <code>git push origin feature/saludo-buenos-dias</code>. Si ya la había subido, el push será rechazado porque el rebase ha reescrito el commit. En ese caso:</p>
+<pre><code>git push --force-with-lease origin feature/saludo-buenos-dias</code></pre>
+<p>Después, abrir la Pull Request y fusionarla.</p>
+<p>Si prefieres no usar la Pull Request, fusiona en local y sube <code>main</code>. Como la rama de B ya cuelga del último commit de <code>main</code>, Git hará un <em>fast-forward</em>, sin commit de fusión:</p>
+<pre><code>cd ~/persona-b
+git checkout main
+git pull origin main
+git merge feature/saludo-buenos-dias
+git push origin main</code></pre>
+<p><strong>Entregable:</strong> captura del fichero con las marcas de conflicto antes de resolverlo, captura de <code>git log --oneline --graph --all</code> al terminar y dos o tres líneas explicando qué decidisteis y por qué.</p>
+<p><strong>Para pensar:</strong> comparad el historial con el de la práctica 1. ¿Por qué aquí no aparece ninguna bifurcación? ¿Qué habría pasado si la persona B hubiera hecho rebase sobre una rama en la que también trabajaba la persona A?</p>
+<h2 id="34-práctica-3--commits-convencionales">3.4 Práctica 3 — Commits convencionales</h2>
+<p><strong>Objetivo:</strong> escribir commits siguiendo la especificación y razonar qué versión semántica resultaría.</p>
+<p><strong>Dónde trabajar.</strong> En <code>~/saludo-app</code>, el repositorio de la práctica 1 (no en <code>persona-a</code> ni <code>persona-b</code>). Todos los comandos de esta práctica se escriben en esa carpeta. Primero, ponlo al día con lo que subiste en la práctica 2:</p>
+<pre><code>cd ~/saludo-app
+git checkout main
+git pull origin main
+git tag</code></pre>
+<p>El último comando debe mostrar <code>v1.0.0</code> y <code>v1.1.0</code>. Si no aparece <code>v1.1.0</code>, haz antes <code>git fetch --tags</code>.</p>
+<p><strong>Qué vas a hacer.</strong> Cuatro cambios pequeños y distintos, <strong>cada uno con su propio commit</strong>. El tipo del commit (<code>feat</code>, <code>fix</code>, <code>chore</code>, <code>docs</code>) dice qué clase de cambio es, y de eso se deduce la versión. En cada cambio sigue siempre la misma secuencia: (a) hacer el cambio, (b) comprobar con <code>git status</code> que Git lo ve, (c) hacer el commit.</p>
+<p><strong>Cambio 1: feat (funcionalidad nueva).</strong> Añade un endpoint <code>/hora</code> en <code>server.js</code>. Este comando inserta el bloque justo después de la línea <code>const url = new URL(...)</code>:</p>
+<pre><code>sed -i &#39;/const url = new URL/r /dev/stdin&#39; server.js &lt;&lt;&#39;EOF&#39;
+  if (url.pathname === &#39;/hora&#39;) {
+    res.writeHead(200, { &#39;Content-Type&#39;: &#39;text/plain; charset=utf-8&#39; });
+    return res.end(new Date().toISOString() + &#39;\n&#39;);
+  }
+EOF
+git diff</code></pre>
+<p><code>git diff</code> debe mostrar solo líneas nuevas (con <code>+</code>). Pruébalo: <code>PORT=3001 node server.js</code> y, en otra terminal, <code>curl localhost:3001/hora</code>. Para el servidor con Ctrl+C y haz el commit:</p>
+<pre><code>git status
+git commit -am &quot;feat: añade endpoint /hora que devuelve la hora del servidor&quot;</code></pre>
+<p><strong>Cambio 2: fix (corrección de un error).</strong> Normaliza el nombre para que las tildes se codifiquen siempre igual. Este comando reemplaza la línea de <code>const nombre</code>:</p>
+<pre><code>sed -i &quot;s/^  const nombre = .*/  const nombre = (url.searchParams.get(&#39;nombre&#39;) || &#39;mundo&#39;).normalize(&#39;NFC&#39;);/&quot; server.js
+git diff
+git commit -am &quot;fix: codifica correctamente nombres con tildes en el saludo&quot;</code></pre>
+<p><strong>Cambio 3: chore (tarea de mantenimiento).</strong> Aquí el fichero es <strong>nuevo</strong>, y <code>git commit -am</code> solo incluye ficheros que Git ya conoce. Por eso hay que añadirlo antes con <code>git add</code>:</p>
+<pre><code>echo &quot;node_modules/&quot; &gt; .gitignore
+git status
+git add .gitignore
+git commit -m &quot;chore: añade .gitignore para node_modules&quot;</code></pre>
+<p><strong>Cambio 4: docs (documentación).</strong> Igual que el anterior, fichero nuevo:</p>
+<pre><code>printf &#39;# saludo-app\n\nArranque: PORT=3001 node server.js\n&#39; &gt; README.md
+git add README.md
+git commit -m &quot;docs: añade README con instrucciones de arranque&quot;</code></pre>
+<p><strong>Comprobación.</strong> Deben aparecer exactamente cuatro commits desde la última versión, cada uno con su tipo:</p>
+<pre><code>git log v1.1.0..HEAD --oneline</code></pre>
+<p>Si te falta alguno, mira con <code>git status</code> qué ha quedado sin commitear. Para sacar la versión no necesitas etiquetar nada: es la discusión de abajo.</p>
+<h3 id="cuestiones-para-discutir">Cuestiones para discutir</h3>
+<ol type="1">
+<li>¿Qué versión corresponde al conjunto de los cuatro commits? <em>(Respuesta esperada:</em> <code>v1.2.0</code><em>. El</em> <code>feat</code> <em>sube la MENOR y pone el PARCHE a cero; el</em> <code>fix</code> <em>queda incluido;</em> <code>chore</code> <em>y</em> <code>docs</code> <em>no afectan.)</em></li>
+<li>¿Y si solo hubiera habido el <code>fix</code>, el <code>chore</code> y el <code>docs</code>? <em>(</em><code>v1.1.1</code><em>.)</em></li>
+<li>¿Y si el <code>feat</code> hubiera sido <code>feat!: el saludo pasa a devolver JSON en lugar de texto</code>? <em>(</em><code>v2.0.0</code><em>: cualquier cliente que leyera texto plano dejaría de funcionar.)</em></li>
+<li>¿Qué ventaja tiene que el pipeline pueda calcular esto solo, sin que nadie lo decida?</li>
+</ol>
+<p>Para terminar, etiquetad la versión acordada y subidla con <code>git push origin main --tags</code>.</p>
+<h2 id="35-debate-final">3.5 Debate final</h2>
+<p><strong>Planteamiento:</strong> durante el curso construiremos un pipeline de despliegue continuo con Jenkins, Docker y Kubernetes, sobre una aplicación desarrollada en pequeños equipos. ¿Qué estrategia de branching elegiríais para ese proyecto y por qué?</p>
+<p><strong>Dinámica propuesta:</strong> tres grupos; cada uno defiende una estrategia y, después, todos intentan llegar a un acuerdo común.</p>
+<h3 id="preguntas-guía">Preguntas guía</h3>
+<ol type="1">
+<li>¿Cuántas personas trabajarán en el mismo repositorio y con qué frecuencia queremos desplegar?</li>
+<li>¿Necesitamos mantener varias versiones en producción a la vez, o solo existe "la versión actual"?</li>
+<li>¿Qué pasa con una rama de funcionalidad que vive dos semanas mientras <code>main</code> sigue avanzando? Relacionadlo con la práctica 2.</li>
+<li>Si integramos a <code>main</code> varias veces al día, ¿qué necesitamos para que eso no rompa producción?</li>
+<li>¿Cómo encaja cada estrategia con un pipeline que despliega automáticamente cada vez que cambia <code>main</code>?</li>
+</ol>
+<h3 id="conclusión-orientativa">Conclusión orientativa</h3>
+<p>Para un equipo pequeño, con un único entorno de producción y un pipeline que despliega tras cada fusión, lo razonable es <strong>GitHub Flow</strong>: ramas cortas y Pull Requests validadas por el CI. A medida que la batería de pruebas sea fiable, se puede evolucionar hacia <strong>trunk-based</strong>. Git Flow aporta estructura, pero sus ramas largas van en contra del objetivo del módulo.</p>
+<p>Lo importante no es que todos lleguen a la misma respuesta, sino que la justifiquen con criterios: tamaño del equipo, frecuencia de despliegue, necesidad de mantener versiones y madurez de las pruebas.</p>
+<h2 id="errores-frecuentes">Errores frecuentes</h2>
+<table>
+<thead>
+<tr class="header">
+<th>Error</th>
+<th>Consecuencia</th>
+<th>Cómo evitarlo</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Hacer commits directamente en <code>main</code> sin darse cuenta</td>
+<td>Cambios sin revisar en la rama desplegable</td>
+<td>Comprobar la rama con <code>git branch</code> o <code>git status</code> antes de empezar</td>
+</tr>
+<tr class="even">
+<td>Olvidar <code>--tags</code> al hacer push</td>
+<td>Las etiquetas quedan en local y el pipeline no las ve</td>
+<td><code>git push origin main --tags</code></td>
+</tr>
+<tr class="odd">
+<td>Dejar marcas <code>&lt;&lt;&lt;&lt;&lt;&lt;&lt;</code> en el código tras resolver</td>
+<td>Se sube un fichero roto</td>
+<td>Buscar las marcas antes del <code>git add</code> y arrancar la aplicación</td>
+</tr>
+<tr class="even">
+<td>Usar <code>git push --force</code> en lugar de <code>--force-with-lease</code></td>
+<td>Se pueden borrar commits de un compañero</td>
+<td>Usar siempre <code>--force-with-lease</code></td>
+</tr>
+<tr class="odd">
+<td>Mensajes como "cambios" o "arreglo"</td>
+<td>Imposible automatizar el versionado ni entender el historial</td>
+<td>Seguir Conventional Commits</td>
+</tr>
+<tr class="even">
+<td>Clonar el Gitea del compañero con la URL de <code>localhost</code> (variante A)</td>
+<td><code>Connection refused</code>: se busca Gitea en el propio equipo</td>
+<td>Escribir la IP del compañero: <code>http://&lt;IP-de-A&gt;:3000/...</code></td>
+</tr>
+<tr class="odd">
+<td>No poder abrir <code>http://&lt;IP-de-A&gt;:3000</code> (variante A)</td>
+<td>La pareja no puede compartir remoto</td>
+<td>Revisar el cortafuegos de A; si la red del aula lo impide, pasar a la variante B</td>
+</tr>
+<tr class="even">
+<td>Usar el usuario del Gitea propio al hacer push contra el de A</td>
+<td><code>Authentication failed</code></td>
+<td>B debe registrarse en el Gitea de A y usar esas credenciales</td>
+</tr>
+<tr class="odd">
+<td>El contenedor de Gitea parado tras reiniciar el equipo</td>
+<td><code>Failed to connect to localhost port 3000</code></td>
+<td><code>docker start gitea</code> (o arrancarlo con <code>--restart unless-stopped</code>)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p>Índice de la UT01 · Sesión 2 →</p>
