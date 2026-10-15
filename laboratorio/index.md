@@ -706,6 +706,13 @@ sudo systemctl enable --now minikube
 | `http://localhost:9000` no abre (SonarQube) | El contenedor `sonarqube` no existe (el plugin de Jenkins no lo instala), aún está arrancando, o se ha parado por `vm.max_map_count` bajo o falta de RAM | `docker ps -a --filter name=sonar` y `docker logs --tail 30 sonarqube`; crearlo o arreglarlo según el apartado 11bis.6 |
 | No aparece el bloque «SonarQube servers» en Manage Jenkins \> System | El plugin SonarQube Scanner no está instalado, o Jenkins no se reinició después de instalarlo | Comprobarlo en Installed plugins, `docker restart jenkins` y recargar con Ctrl+F5; el bloque está al final de la página System |
 | `waitForQualityGate` se queda esperando para siempre | Falta el webhook de SonarQube hacia Jenkins, o SonarQube no está en la red `lab5168` | Crear el webhook `http://jenkins:8080/sonarqube-webhook/` (con la barra final) y `docker network connect lab5168 sonarqube` |
+| `RejectedAccessException ... getAt` en «Validar parámetros requeridos» | El Jenkinsfile antiguo usaba `env[it]`, que el sandbox de Jenkins no permite | Usar el zip actual del laboratorio (comprueba `env.TARGET_ENV`, `env.IMAGE_TAG`, etc. de forma explícita) |
+| Gitea no abre tras un fin de semana o puente | Los contenedores no se levantaron al encender, o la red `lab5168` se perdió | `docker start gitea jenkins sonarqube registry-fwd app-fwd`; si falta la red, `docker network create lab5168` y reconectar con `docker network connect lab5168 <contenedor>` |
+| `node: command not found` en la VM | Node no estaba instalado en la VM (el apt de Ubuntu 22.04 trae la v12) | Instalar Node 20 con NodeSource: `curl -fsSL https://deb.nodesource.com/setup_20.x \| sudo -E bash - && sudo apt-get install -y nodejs` |
+| `git commit -am` dice «nothing to commit» | `-a` solo incluye ficheros ya versionados y modificados; antes hay que editar el fichero (o hacer `git add`) | Hacer el cambio indicado en la práctica, comprobar con `git status` y repetir; comprobar también que estás en la carpeta correcta |
+| VirtualBox: `VERR_SVM_DISABLED` o `VT-x is disabled` | La virtualización está desactivada en la BIOS | Activar SVM/AMD-V (AMD) o Intel VT-x en la BIOS/UEFI |
+| `modprobe vboxdrv`: «Key was rejected by service» | Secure Boot bloquea el módulo de VirtualBox | Registrar la clave con `mokutil --import`, reiniciar, aceptar en MOK y ejecutar `sudo dpkg-reconfigure virtualbox-dkms` |
+| La VM se queda en «Loading essential drivers» al arrancar | Arranque lento (Hyper-V/WSL2 activos en Windows, poca RAM o cambio de red) | Esperar unos minutos; en VirtualBox activar paravirtualización KVM y 4 CPU; en Windows desactivar Hyper-V |
 
 **Problemas específicos de las UT 2 a 4**
 
@@ -719,6 +726,33 @@ sudo systemctl enable --now minikube
 | Pod de Redis en `ImagePullBackOff`                                      | El nodo no puede descargar de Docker Hub                                                           | `minikube image load redis:7-alpine` (apartado 11bis.3)                                  |
 | La etapa «Validar instalación» falla con «no se puede conectar a Redis» | Redis parado o todavía no listo                                                                    | `kubectl get pods -l app=redis` y esperar a `Ready`                                      |
 | El build de la imagen falla en `npm ci`                                 | Falta `package-lock.json` en `lab/app`                                                             | Usar el zip del laboratorio, que lo incluye                                              |
+
+## 14. Alternativa: laboratorio en VirtualBox
+
+Si el equipo no permite instalar Docker directamente, o quieres un laboratorio idéntico para todos, el profesor entrega una máquina virtual (fichero `.ova`) con todo ya instalado y configurado.
+
+1. Instala VirtualBox y activa la virtualización (SVM/AMD-V o VT-x) en la BIOS.
+2. Importa el `.ova` (Archivo > Importar servicio virtualizado). Se necesitan 8 GB de RAM y 4 CPU para la VM.
+3. Arranca la VM y espera unos minutos a que los contenedores estén listos. Usuario y contraseña del sistema: `vagrant` / `vagrant`.
+4. Conéctate por SSH desde tu equipo: `ssh -p 2222 vagrant@127.0.0.1`, o usa la consola de VirtualBox.
+
+| Servicio | Dirección en tu navegador | Usuario / contraseña |
+|---|---|---|
+| Gitea | http://localhost:3000 | `aula` / `aula1234` |
+| Jenkins | http://localhost:8080 | `aula` / `aula1234` |
+| SonarQube | http://localhost:9000 | `admin` / `Aula-5168-lab` |
+| Aplicación (sesiones 3 en adelante) | http://localhost:3001 | |
+| Aplicación en Kubernetes | http://localhost:30080 | |
+
+Gitea por SSH usa el puerto 2223 del equipo (el 2222 está reservado para entrar en la VM).
+
+Notas por sesión:
+
+- **Sesión 1:** las prácticas se hacen dentro de la VM, en `~/saludo-app`. Las copias `persona-a` y `persona-b` se clonan desde `~` (no dentro de `saludo-app`).
+- **Sesión 2:** SonarQube ya existe en la VM: no hay que crear el contenedor, solo entrar con `admin` / `Aula-5168-lab`.
+- **Sesiones 3 en adelante:** el repositorio del laboratorio está en `~/modulo5168-lab` y la aplicación en `lab/app`. Node 20, `ab` y Ansible ya están instalados.
+- **Sesión 8:** el usuario de Gitea es `aula` (no `alumno`).
+- Si SonarQube rechaza la contraseña, recrea el contenedor y el volumen, fija la contraseña `Aula-5168-lab`, genera un token nuevo y actualiza la credencial `sonar-token` en Jenkins.
 
 ## Checklist rápido del orden de instalación
 
