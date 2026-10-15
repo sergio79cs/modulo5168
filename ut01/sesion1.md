@@ -10,6 +10,16 @@
 
 Debe estar hecha antes de la sesión. Requisitos: Git, Node.js y Docker instalados.
 
+Comprueba que tienes **Node.js 18 o superior** con `node --version`. En Ubuntu y Debian, `sudo apt install nodejs` instala una versión demasiado antigua (la 12 en Ubuntu 22.04), así que instala la 20 desde NodeSource:
+
+```
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt-get install -y nodejs
+node --version
+```
+
+En Windows o Mac, descarga el instalador LTS desde https://nodejs.org. En la máquina virtual del laboratorio ya viene instalado.
+
 **1. Arrancar Gitea en un contenedor.**
 
 ```
