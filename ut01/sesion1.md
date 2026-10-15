@@ -316,6 +316,8 @@ git -C persona-b config user.name "Persona B"
 
 En los pasos siguientes, "persona A" y "persona B" son esas dos carpetas: se cambia de carpeta en lugar de cambiar de compañero. El conflicto y el rebase son idénticos; solo se pierde la coordinación con otra persona.
 
+Haz los dos `git clone` desde tu carpeta personal (`cd ~`), no desde dentro de `saludo-app`: `persona-a`, `persona-b` y `saludo-app` deben quedar una al lado de la otra. Entra en cada carpeta con `cd ~/persona-a` o `cd ~/persona-b`: los comandos de Git actúan sobre la carpeta en la que estás.
+
 ### Paso 1. Cada persona crea su rama desde el mismo main
 
 ```
@@ -328,7 +330,21 @@ git checkout -b feature/saludo-buenos-dias
 
 ### Paso 2. Ambas modifican la misma línea
 
-Las dos editan la línea del `res.end(...)` en `server.js`. La persona A cambia "Hola" por "Bienvenido"; la persona B, por "Buenos días". Cada una hace su commit:
+Las dos editan la línea del `res.end(...)` en `server.js`. La persona A cambia "Hola" por "Bienvenido"; la persona B, por "Buenos días".
+
+`git commit -am` solo guarda cambios que ya existen: antes de cada commit hay que modificar de verdad el fichero, **dentro de la carpeta de esa persona**. Puedes editar `server.js` con `nano`, o hacerlo con `sed`. Comprueba con `git diff` que el cambio aparece antes de hacer el commit:
+
+```
+cd ~/persona-a
+sed -i 's/Hola, /Bienvenido, /' server.js
+git diff
+
+cd ~/persona-b
+sed -i 's/Hola, /Buenos días, /' server.js
+git diff
+```
+
+Cada una hace su commit:
 
 ```
 # Persona A
@@ -341,6 +357,16 @@ git commit -am "feat: saludo con buenos días"
 ### Paso 3. La persona A integra primero
 
 Sube su rama, abre una Pull Request y la fusiona en `main`. Para ir más rápido en clase, también puede fusionar en local y subir `main`. Desde ese momento, `main` en el remoto contiene "Bienvenido".
+
+Los comandos, desde la carpeta de la persona A:
+
+```
+cd ~/persona-a
+git push origin feature/saludo-bienvenida
+git checkout main
+git merge --no-ff --no-edit feature/saludo-bienvenida
+git push origin main
+```
 
 ### Paso 4. La persona B se pone al día con rebase
 
@@ -376,6 +402,16 @@ git push --force-with-lease origin feature/saludo-buenos-dias
 
 Después, abrir la Pull Request y fusionarla.
 
+Si prefieres no usar la Pull Request, fusiona en local y sube `main`. Como la rama de B ya cuelga del último commit de `main`, Git hará un *fast-forward*, sin commit de fusión:
+
+```
+cd ~/persona-b
+git checkout main
+git pull origin main
+git merge feature/saludo-buenos-dias
+git push origin main
+```
+
 **Entregable:** captura del fichero con las marcas de conflicto antes de resolverlo, captura de `git log --oneline --graph --all` al terminar y dos o tres líneas explicando qué decidisteis y por qué.
 
 **Para pensar:** comparad el historial con el de la práctica 1. ¿Por qué aquí no aparece ninguna bifurcación? ¿Qué habría pasado si la persona B hubiera hecho rebase sobre una rama en la que también trabajaba la persona A?
@@ -383,6 +419,14 @@ Después, abrir la Pull Request y fusionarla.
 ## 3.4 Práctica 3 — Commits convencionales
 
 **Objetivo:** escribir commits siguiendo la especificación y razonar qué versión semántica resultaría.
+
+Trabaja en `~/saludo-app`, el repositorio de la práctica 1, no en `persona-a` ni `persona-b`. Antes de empezar, ponlo al día con lo que subiste en la práctica 2:
+
+```
+cd ~/saludo-app
+git checkout main
+git pull origin main
+```
 
 Partiendo del estado actual (última etiqueta `v1.1.0`), haz cuatro cambios pequeños, cada uno en su propio commit con el tipo adecuado. Propuesta:
 
@@ -394,6 +438,22 @@ git commit -am "docs: añade README con instrucciones de arranque"
 ```
 
 Cada commit debe ir precedido del cambio real en el código. Para `chore` y `docs` recuerda hacer `git add` del fichero nuevo: `-a` solo incluye ficheros que Git ya conoce.
+
+Los cambios concretos, uno antes de cada commit. Edita con `nano server.js` y comprueba con `git status` que aparece `modified: server.js` antes de hacer el commit (`git commit -am` no hace nada si no hay cambios):
+
+```
+# 1) feat: en server.js, justo después de la línea const url = new URL(...), añade:
+#      if (url.pathname === '/hora') {
+#        res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+#        return res.end(new Date().toISOString() + '\n');
+#      }
+# 2) fix: cambia la línea del nombre por:
+#      const nombre = (url.searchParams.get('nombre') || 'mundo').normalize('NFC');
+# 3) chore: crea el fichero nuevo
+echo "node_modules/" > .gitignore
+# 4) docs: crea el fichero nuevo
+printf '# saludo-app\n\nArranque: PORT=3001 node server.js\n' > README.md
+```
 
 Después, revisad en grupo qué ha pasado desde la última versión:
 
