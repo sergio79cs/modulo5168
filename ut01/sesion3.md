@@ -19,7 +19,7 @@ Docker instalado y funcionando en cada equipo (`docker version` responde con cli
 
 ## Bloque 1 — ¿Por qué contenedores?
 
-Para arrancar, pregunta al grupo cuántas veces les ha pasado que algo funcionaba en su ordenador y no en el de un compañero. Las causas típicas son otra versión de Node, una dependencia global que falta, variables de entorno distintas o incluso otro sistema operativo. En un pipeline de despliegue continuo este problema se multiplica, porque el código pasa por el equipo del desarrollador, el servidor de integración (Jenkins), preproducción y producción. Si cada entorno es distinto, no podemos garantizar que lo que probamos sea lo que desplegamos.
+Para arrancar, no os ha pasado que algo funcionaba en tu ordenador y no en el de un compañero. Las causas típicas son otra versión de Node, una dependencia global que falta, variables de entorno distintas o incluso otro sistema operativo. En un pipeline de despliegue continuo este problema se multiplica, porque el código pasa por el equipo del desarrollador, el servidor de integración (Jenkins), preproducción y producción. Si cada entorno es distinto, no podemos garantizar que lo que probamos sea lo que desplegamos.
 
 Un contenedor empaqueta la aplicación junto con todo lo que necesita para ejecutarse: runtime, librerías, configuración y sistema de ficheros. El mismo artefacto recorre todo el pipeline sin cambios.
 
