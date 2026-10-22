@@ -37,7 +37,7 @@ un contenedor no es una máquina pequeña, es un proceso aislado. Cuando el proc
 
 ## Bloque 2 — Imagen, contenedor, capas y registro
 
-Los cuatro conceptos se entienden mejor con una analogía de programación orientada a objetos, que ya dominas:
+Los cuatro conceptos se entienden mejor con una analogía de programación orientada a objetos:
 
 - **Imagen**: plantilla de solo lectura, como una *clase*. Contiene el sistema de ficheros y los metadatos (comando de arranque, puertos, variables de entorno).
 - **Contenedor**: instancia en ejecución de una imagen, como un *objeto*. De una misma imagen pueden salir muchos contenedores.
