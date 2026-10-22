@@ -63,23 +63,104 @@ Los cuatro conceptos se entienden mejor con una analogía de programación orien
 
 ## Bloque 3 — Anatomía de un Dockerfile
 
-| Instrucción | Qué hace                                           | ¿Crea capa de ficheros? |
-|-------------|----------------------------------------------------|-------------------------|
-| `FROM`      | Imagen base de partida                             | Sí (las de la base)     |
-| `WORKDIR`   | Directorio de trabajo (lo crea si no existe)       | Sí, mínima              |
-| `COPY`      | Copia ficheros del contexto de build a la imagen   | Sí                      |
-| `RUN`       | Ejecuta un comando durante la construcción         | Sí                      |
-| `ENV`       | Define variables de entorno                        | Solo metadatos          |
-| `EXPOSE`    | Documenta el puerto (no lo publica)                | Solo metadatos          |
-| `USER`      | Usuario con el que se ejecuta lo que viene después | Solo metadatos          |
-| `CMD`       | Comando por defecto al arrancar el contenedor      | Solo metadatos          |
+Un **Dockerfile** es un fichero de texto con la receta para construir una imagen. Docker lo lee **de arriba abajo** y ejecuta cada línea en orden. Cada línea empieza por una **instrucción** (en mayúsculas) seguida de sus argumentos.
 
-Dos confusiones típicas que conviene atacar ya:
+### Un Dockerfile, línea a línea
 
-- **\`RUN\` frente a \`CMD\`**: `RUN` se ejecuta al *construir* la imagen (instalar dependencias), mientras que `CMD` se ejecuta al *arrancar* el contenedor (lanzar la app).
-- **\`EXPOSE\` frente a \`-p\`**: `EXPOSE` solo documenta. Lo que realmente abre el puerto hacia el anfitrión es `docker run -p 3001:3000`, con el formato `puerto_anfitrión:puerto_contenedor`. En nuestro laboratorio el 3000 del anfitrión lo ocupa Gitea, así que la aplicación se publica en el 3001.
+Este es el Dockerfile que usaremos en la práctica. Fíjate en qué hace cada línea:
 
-También hay que presentar el **contexto de build**: el punto final de `docker build -t ... .` indica la carpeta que se envía al motor de Docker. Todo lo que hay en ella puede copiarse a la imagen, y por eso existe `.dockerignore`, que funciona como un `.gitignore` para las builds.
+```
+FROM node:24-alpine         # 1. Parto de una imagen que ya trae Node.js instalado
+WORKDIR /app                # 2. Me sitúo en la carpeta /app (se crea si no existe)
+COPY package*.json ./       # 3. Copio solo la lista de dependencias
+RUN npm ci --omit=dev       # 4. Instalo las dependencias (ocurre al CONSTRUIR la imagen)
+COPY . .                    # 5. Copio el resto del código de la aplicación
+ENV PORT=3000               # 6. Dejo anotada una variable de entorno
+EXPOSE 3000                 # 7. Dejo anotado que la app usa el puerto 3000
+CMD ["node", "server.js"]   # 8. Comando que se ejecutará al ARRANCAR el contenedor
+```
+
+Piensa en ello como montar un mueble: las líneas 1 a 5 **preparan y llenan** la imagen (se hacen una sola vez, al construir). Las líneas 6 a 8 **anotan** cómo debe comportarse cuando alguien la use.
+
+### Qué hace cada instrucción
+
+| Instrucción | Qué hace                                                   | ¿Añade ficheros a la imagen?                 |
+|-------------|------------------------------------------------------------|----------------------------------------------|
+| `FROM`      | Elige la imagen base de la que se parte                    | Sí: trae todas las capas de la imagen base   |
+| `WORKDIR`   | Fija la carpeta de trabajo; la crea si no existe           | Casi nada: solo crea la carpeta              |
+| `COPY`      | Copia ficheros de tu carpeta a la imagen                   | Sí: los ficheros copiados                    |
+| `RUN`       | Ejecuta un comando mientras se construye la imagen         | Sí: todo lo que el comando instale o genere  |
+| `ENV`       | Define una variable de entorno                             | No: solo guarda una nota                     |
+| `EXPOSE`    | Anota qué puerto usa la aplicación (no lo abre)            | No: solo guarda una nota                     |
+| `USER`      | Fija el usuario con el que se ejecuta lo que viene después | No: solo guarda una nota                     |
+| `CMD`       | Fija el comando que se ejecuta al arrancar el contenedor   | No: solo guarda una nota                     |
+
+**¿Por qué importa la última columna?** Las instrucciones se dividen en dos tipos:
+
+- **Las que añaden contenido** (`FROM`, `WORKDIR`, `COPY`, `RUN`): modifican el sistema de ficheros de la imagen y generan una **capa** con ese contenido. Son las que ocupan espacio y las que tardan en ejecutarse.
+- **Las que solo anotan información** (`ENV`, `EXPOSE`, `USER`, `CMD`): no tocan ningún fichero. Guardan una nota dentro de la imagen del tipo «esta variable vale esto» o «arranca con este comando». Son los llamados **metadatos**.
+
+Esta distinción te hará falta en el bloque 4: la caché de Docker trabaja con las capas que tienen contenido, y lo que cuesta tiempo es sobre todo `RUN npm ci`.
+
+### Dos confusiones típicas
+
+**1. `RUN` frente a `CMD`: la diferencia es *cuándo* se ejecutan.**
+
+|                     | `RUN`                                                  | `CMD`                                          |
+|---------------------|--------------------------------------------------------|------------------------------------------------|
+| ¿Cuándo se ejecuta? | Al **construir** la imagen (`docker build`)            | Al **arrancar** un contenedor (`docker run`)   |
+| ¿Cuántas veces?     | Una sola vez; el resultado queda guardado en la imagen | Cada vez que arrancas un contenedor            |
+| ¿Para qué sirve?    | Preparar la imagen: instalar dependencias, compilar…   | Lanzar la aplicación                           |
+| Ejemplo             | `RUN npm ci --omit=dev`                                | `CMD ["node", "server.js"]`                    |
+
+Un error habitual es escribir `RUN node server.js`. Docker se quedaría esperando a que la aplicación termine durante la construcción, y como un servidor no termina nunca, la build no acabaría. Lanzar la aplicación es trabajo de `CMD`.
+
+**2. `EXPOSE` frente a `-p`: una es una nota y la otra abre el puerto.**
+
+- `EXPOSE 3000` **solo documenta** que la aplicación escucha en el puerto 3000 *dentro* del contenedor. No abre nada ni hace la aplicación accesible.
+- `docker run -p 3001:3000` es lo que **realmente conecta** el puerto. Se lee así:
+
+```
+-p 3001:3000
+   │    └── puerto DENTRO del contenedor (donde escucha la app)
+   └─────── puerto de TU ORDENADOR (el que usarás en el navegador o con curl)
+```
+
+Con `-p 3001:3000`, todo lo que llegue al puerto 3001 de tu ordenador se reenvía al 3000 del contenedor. Por eso se accede con `http://localhost:3001`. Puedes elegir otro puerto de tu ordenador, como `-p 8080:3000`; lo que no puedes es usar uno que ya esté ocupado. En nuestro laboratorio el 3000 del anfitrión lo ocupa Gitea, así que publicamos la aplicación en el 3001.
+
+### El contexto de build
+
+Mira el punto final de este comando:
+
+```
+docker build -t modulo5168-app:v1.1.0 .
+```
+
+Ese `.` significa «usa esta carpeta». Se llama **contexto de build**: es la carpeta cuyo contenido Docker recibe para construir la imagen. Piensa en ella como una caja de mudanza:
+
+- Docker solo puede copiar a la imagen lo que haya dentro de esa caja. Un `COPY` no puede coger ficheros de fuera de la carpeta.
+- Al empezar la build, Docker se lleva **toda** la caja, aunque luego no copies todo.
+- Con `COPY . .` copias **todo** lo que haya en la caja a la imagen (el primer punto es el origen; el segundo, el destino dentro de la imagen: `/app`).
+
+Eso tiene un problema: si en tu carpeta hay cosas que no deben ir a la imagen, acabarán dentro. Por ejemplo `node_modules` (se instala dentro de la imagen con `npm ci`, y el de tu ordenador puede ser de otro sistema operativo), la carpeta `.git` o ficheros con contraseñas.
+
+Para evitarlo existe el fichero **`.dockerignore`**, que funciona igual que un `.gitignore`: lista lo que Docker debe dejar fuera de la caja.
+
+```
+node_modules
+.git
+*.md
+```
+
+Con un buen `.dockerignore` la build empieza antes (se envía menos), la imagen sale más limpia y no se cuelan ficheros que no deberían estar.
+
+### Resumen del bloque
+
+- Un Dockerfile se lee de arriba abajo, y cada instrucción es un paso de la receta.
+- `FROM`, `WORKDIR`, `COPY` y `RUN` añaden contenido a la imagen; `ENV`, `EXPOSE`, `USER` y `CMD` solo guardan notas.
+- `RUN` se ejecuta al construir; `CMD`, al arrancar el contenedor.
+- `EXPOSE` documenta; `-p puerto_anfitrión:puerto_contenedor` abre el puerto de verdad.
+- El `.` de `docker build` es la carpeta que Docker recibe, y `.dockerignore` decide qué se queda fuera.
 
 ## Bloque 4 — Caché de capas y orden de instrucciones
 
