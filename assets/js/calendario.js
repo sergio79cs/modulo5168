@@ -71,5 +71,5 @@ const SESIONES = [
   { ut: 2, n: 9, corto: "Despliegue", titulo: "Ejecución y comprobación del despliegue", criterio: "RA2.c", url: "ut02/sesion9.html", dias: 1 },
   { ut: 2, n: 10, corto: "Errores", titulo: "Manejo de errores: detener el pipeline", criterio: "RA2.d", url: "ut02/sesion10.html", dias: 1 },
   { ut: 2, n: 11, corto: "Limpieza", titulo: "Destrucción de objetos intermedios", criterio: "RA2.d", url: "ut02/sesion11.html", dias: 1 },
-  { ut: 2, n: 12, corto: "Integradora", titulo: "Práctica integradora y cierre", criterio: "RA2.a–d", url: "ut02/", dias: 1 }
+  { ut: 2, n: 12, corto: "Integradora", titulo: "Práctica integradora y cierre", criterio: "RA2.a–d", url: "ut02/sesion12.html", dias: 1 }
 ];
