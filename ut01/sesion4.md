@@ -4,14 +4,14 @@
 
 **Objetivo:** entender por qué una imagen de producción debe contener solo lo necesario para ejecutar, y comprobarlo midiendo dos versiones de la misma app.
 
-**Supuesto:** `modulo5168-app` es una app Node.js/Express con tests en Jest.
+**Material:** la app del laboratorio (`lab/app` del zip `modulo5168-lab.zip`), la misma que usasteis en la sesión 3.
 
 ## Recordatorio
 
 Preguntas rápidas para enlazar con la sesión 3:
 
 - ¿Qué genera cada instrucción de un Dockerfile?
-- ¿Por qué copiamos `package*.json` antes que el resto del código?
+- ¿Por qué copiamos `package.json` y `package-lock.json` antes que el resto del código?
 - ¿Qué diferencia hay entre imagen y contenedor?
 
 ## 6.1 Teoría
@@ -22,7 +22,7 @@ Para *construir* y *probar* una aplicación necesitamos compiladores, herramient
 
 ### Multi-stage builds
 
-Un Dockerfile puede tener varios `FROM`. Cada uno inicia una etapa nueva y solo la última forma la imagen final. Con `COPY --from=<etapa>` traemos a la etapa final únicamente los artefactos necesarios; herramientas, caché y devDependencies se quedan en las etapas intermedias.
+Un Dockerfile puede tener varios `FROM`. Cada uno inicia una etapa nueva y solo la última forma la imagen final. Con `COPY --from=<etapa>` traemos a la etapa final únicamente los artefactos necesarios; herramientas, caché y dependencias de desarrollo se quedan en las etapas intermedias.
 
 ```
 FROM imagen-pesada AS build     # etapa 1: construir y testear
@@ -36,122 +36,69 @@ COPY --from=build /ruta/artefacto ./
 - **Imágenes base mínimas (alpine).** `node:20` pesa en torno a 1 GB; `node:20-alpine`, alrededor de 130 MB. Ojo: alpine usa `musl` en lugar de `glibc` y algunos módulos nativos pueden dar problemas. Alternativas: variantes `-slim` o imágenes distroless.
 - **Usuario no root.** Si alguien compromete la aplicación, no debe tener privilegios de root dentro del contenedor. Las imágenes oficiales de Node incluyen el usuario `node`.
 - **HEALTHCHECK.** Docker (y más adelante Kubernetes, con sus probes) puede saber si la app responde de verdad, no solo si el proceso está vivo.
-- `.dockerignore`**.** Evita meter `node_modules`, `.git`, etc. en el contexto de build.
+- **`.dockerignore`.** Evita meter `node_modules`, `.git`, etc. en el contexto de build.
 - **Solo dependencias de producción** (`npm ci --omit=dev`) y versiones de imagen fijadas (`node:20-alpine`, nunca `latest`).
 
 ## 6.2 Práctica — Comparativa single-stage vs multi-stage
 
-### Paso 1. Preparar la app (si no la tienen de sesiones anteriores)
+### Paso 1. Situarse en el proyecto
 
-`package.json`
-
-```
-{
-  "name": "modulo5168-app",
-  "version": "1.1.0",
-  "scripts": {
-    "start": "node src/index.js",
-    "test": "jest"
-  },
-  "dependencies": {
-    "express": "^4.19.2"
-  },
-  "devDependencies": {
-    "jest": "^29.7.0",
-    "supertest": "^7.0.0"
-  }
-}
-```
-
-`src/app.js`
+Trabajamos sobre la app del laboratorio (o el repositorio de Gitea donde la subisteis en la sesión 3):
 
 ```
-const express = require('express');
-const app = express();
-
-app.get('/', (req, res) => res.json({ app: 'modulo5168-app', version: '1.1.0' }));
-app.get('/health', (req, res) => res.status(200).send('OK'));
-
-module.exports = app;
+cd lab/app
+ls -la
 ```
 
-`src/index.js`
+Debe contener `server.js`, `package.json`, `package-lock.json`, `.dockerignore`, `Dockerfile` (multi-stage) y `Dockerfile.singlestage`. Las dos versiones del Dockerfile ya vienen en el laboratorio: hoy no hay que escribir código, sino analizarlas y medirlas.
 
-```
-const app = require('./app');
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Escuchando en ${PORT}`));
-```
-
-`test/app.test.js`
-
-```
-const request = require('supertest');
-const app = require('../src/app');
-
-test('GET /health devuelve 200', async () => {
-  const res = await request(app).get('/health');
-  expect(res.statusCode).toBe(200);
-});
-```
-
-`.dockerignore`
-
-```
-node_modules
-npm-debug.log
-.git
-.gitignore
-*.md
-```
-
-### Paso 2. Versión single-stage
+### Paso 2. Analizar y construir la versión single-stage
 
 `Dockerfile.singlestage`
 
 ```
 FROM node:20
 WORKDIR /app
-COPY . .
-RUN npm install
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
+COPY server.js ./
+ENV PORT=3000
+ENV APP_VERSION=1.2.0
 EXPOSE 3000
-CMD ["node", "src/index.js"]
+CMD ["node", "server.js"]
 ```
 
-Antes de construir, debéis detectar al menos tres problemas: imagen base completa, ejecución como root, instala devDependencies, `COPY . .` antes de instalar rompe la caché y no hay healthcheck.
+Antes de construir, comparadlo con el `Dockerfile` y detectad qué le falta: usa la imagen `node:20` completa, se ejecuta como root y no tiene healthcheck.
 
 ```
 docker build -f Dockerfile.singlestage -t modulo5168-app:singlestage .
 ```
 
-### Paso 3. Versión multi-stage
+### Paso 3. Analizar y construir la versión multi-stage
 
 `Dockerfile`
 
 ```
-# ---------- Etapa 1: build y test ----------
-FROM node:20 AS build
+# Etapa 1: instalar dependencias (con el package-lock.json, para builds reproducibles)
+FROM node:20-alpine AS builder
 WORKDIR /app
-COPY package*.json ./
-RUN npm ci
-COPY . .
-RUN npm test
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
 
-# ---------- Etapa 2: imagen final ----------
-FROM node:20-alpine AS runtime
-ENV NODE_ENV=production
+# Etapa 2: imagen final, mínima
+FROM node:20-alpine
 WORKDIR /app
-COPY package*.json ./
-RUN npm ci --omit=dev && npm cache clean --force
-COPY --from=build --chown=node:node /app/src ./src
+COPY --from=builder /app/node_modules ./node_modules
+COPY server.js package.json ./
+ENV PORT=3000
+ENV APP_VERSION=1.2.0
 USER node
 EXPOSE 3000
-HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-  CMD wget -qO- http://localhost:3000/health || exit 1
-CMD ["node", "src/index.js"]
+HEALTHCHECK --interval=30s --timeout=3s CMD wget -qO- http://localhost:3000/health || exit 1
+CMD ["node", "server.js"]
 ```
 
-Punto a destacar: si un test falla, `RUN npm test` hace fallar el build y no se genera imagen. Esto enlaza con el pipeline de Jenkins de las próximas unidades.
+Fijaos en qué hace cada etapa, qué copia `COPY --from=builder` y para qué sirven `USER node` y `HEALTHCHECK`.
 
 ```
 docker build -t modulo5168-app:v1.1.0 .
@@ -167,14 +114,12 @@ docker images | grep modulo5168-app
 docker history modulo5168-app:singlestage
 docker history modulo5168-app:v1.1.0
 
-# Número de paquetes en node_modules
-docker run --rm modulo5168-app:singlestage ls node_modules | wc -l
-docker run --rm modulo5168-app:v1.1.0 ls node_modules | wc -l
-
 # Usuario de ejecución
 docker run --rm modulo5168-app:singlestage whoami
 docker run --rm modulo5168-app:v1.1.0 whoami
 ```
+
+La single-stage debe responder `root`; la multi-stage, `node`.
 
 ### Paso 5. Comprobar el HEALTHCHECK
 
@@ -182,15 +127,16 @@ docker run --rm modulo5168-app:v1.1.0 whoami
 docker rm -f test-app 2>/dev/null     # el contenedor de la sesión 3, si sigue en marcha
 docker run -d --name app-single -p 3002:3000 modulo5168-app:singlestage
 docker run -d --name app-multi  -p 3003:3000 modulo5168-app:v1.1.0
-# esperar ~15 segundos
+# esperar unos segundos
 docker ps
+curl http://localhost:3003/health
 ```
 
 En la columna STATUS, `app-multi` debe mostrar `(healthy)` y `app-single` no mostrará estado de salud. Para limpiar: `docker rm -f app-single app-multi`.
 
 ### Paso 6. Caché
 
-Modificar una línea de `src/app.js`, reconstruir ambas imágenes con `time docker build ...` y comparar cuánto tarda cada una y qué capas se reaprovechan (`CACHED`). En la single-stage se reinstala todo; en la multi-stage, no.
+Modificad el texto de la ruta `/` en `server.js`, reconstruid ambas imágenes con `time docker build ...` y comparad qué capas se reaprovechan (`CACHED`). Como en los dos Dockerfiles se copia `package*.json` antes que `server.js`, la instalación de dependencias debe salir de caché en ambos.
 
 Si algún build falla con `EAI_AGAIN` o `Temporary failure resolving`, es el DNS de la red del centro: fija el DNS de Docker como indica el paso 1 de la guía de instalación (clave `dns` en `/etc/docker/daemon.json`, sin borrar el resto) y reinicia Docker.
 
@@ -200,16 +146,14 @@ Si el repositorio ya está en Gitea, es buen momento para hacer `git commit` y `
 
 Tabla comparativa rellenada con los datos reales obtenidos:
 
-|                                                  | `singlestage` | `v1.1.0` (multi-stage) |
-|--------------------------------------------------|---------------|------------------------|
-| Imagen base                                      |               |                        |
-| Tamaño (`docker images`)                         |               |                        |
-| Nº de capas (`docker history`)                   |               |                        |
-| Paquetes en `node_modules`                       |               |                        |
-| Usuario de ejecución                             |               |                        |
-| ¿Tiene HEALTHCHECK?                              |               |                        |
-| ¿Ejecuta tests en el build?                      |               |                        |
-| (Opcional) Tiempo de rebuild tras cambiar `src/` |               |                        |
+|                                                         | `singlestage` | `v1.1.0` (multi-stage) |
+|---------------------------------------------------------|---------------|------------------------|
+| Imagen base de la imagen final                          |               |                        |
+| Tamaño (`docker images`)                                |               |                        |
+| Nº de capas (`docker history`)                          |               |                        |
+| Usuario de ejecución                                    |               |                        |
+| ¿Tiene HEALTHCHECK?                                     |               |                        |
+| (Opcional) ¿Reinstala dependencias al cambiar `server.js`? |            |                        |
 
 A la tabla se añade una **conclusión razonada** (10-15 líneas) que responda a:
 
@@ -220,13 +164,13 @@ A la tabla se añade una **conclusión razonada** (10-15 líneas) que responda a
 
 ## 6.3 Puesta en común
 
-Dos o tres grupos comparten su tabla en pantalla y se contrastan cifras. Si hay diferencias grandes, suele ser por no haber usado  .dockerignore o por haber copiado `node_modules` local.
+Dos o tres grupos comparten su tabla en pantalla y se contrastan cifras. Si hay diferencias grandes, suele ser por no tener `.dockerignore` y haber copiado `node_modules` local.
 
 Preguntas:
 
 - Si desplegamos 20 veces al día en 5 servidores, ¿cuántos GB se transfieren con cada versión?
-- ¿Por qué es buena idea que los tests se ejecuten dentro del build? ¿Qué pasaría en Jenkins si fallan?
-- ¿Qué haría Kubernetes con la información del HEALTHCHECK? (adelanto de liveness/readiness probes)
+- ¿Qué otras tareas (tests, linter, compilación) podríamos hacer en la etapa de build sin que lleguen a la imagen final? ¿Qué pasaría en Jenkins si fallan?
+- ¿Qué haría Kubernetes con la información del HEALTHCHECK? (adelanto de liveness/readiness probes, ya presentes en `lab/k8s/deployment.yaml`)
 - ¿Dónde quedan las etapas intermedias? (`docker images -a`, imágenes `<none>`; limpiar con `docker image prune`)
 
 ### Criterios de evaluación del entregable (RA1.c)
