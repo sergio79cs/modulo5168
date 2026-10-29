@@ -109,7 +109,7 @@ Pasarás de comprobar a mano a comprobar de forma automática. Integrarás en el
 
 ### Sesión 10 · Manejo de errores: detener el pipeline · RA2.d
 
-Un pipeline profesional no solo falla: explica **qué** ha fallado. Estudiarás cómo capturar un error en una etapa concreta con `try/catch`, cómo detener el pipeline con `error()` y cómo dejar en el log un mensaje útil para quien tenga que arreglarlo. Es una sesión de teoría y demostraciones, pensada para no dejar una práctica a medias antes del descanso de Navidad.
+Un pipeline profesional no solo falla: explica **qué** ha fallado. Estudiarás cómo capturar un error en una etapa concreta con `try/catch`, cómo detener el pipeline con `error()` y cómo dejar en el log un mensaje útil para quien tenga que arreglarlo. Es una sesión de teoría y demostraciones, sin práctica individual.
 
 📄 [Ir a la sesión 10](sesion10.md)
 

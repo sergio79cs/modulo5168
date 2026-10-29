@@ -4,7 +4,7 @@
 
 Criterio RA2.d (parte 1)
 
-Esta sesión es solo de teoría, con una demostración en pantalla que sigue el docente. No hay práctica individual: así no queda ningún ejercicio a medias durante las vacaciones.
+Esta sesión es solo de teoría, con una demostración en pantalla que sigue el docente. No hay práctica individual.
 
 ## Objetivos de la sesión
 
@@ -646,7 +646,7 @@ namespace "demo-errores" deleted
 
 ## 12.3 Cierre y preguntas de comprensión
 
-Responde a estas preguntas, primero por tu cuenta y después en común. Sirven para repasar los conceptos antes de las vacaciones.
+Responde a estas preguntas, primero por tu cuenta y después en común. Sirven para repasar los conceptos de la sesión.
 
 1. Un comando `sh` devuelve el código de salida 2 y no hay ningún `try/catch`. ¿Qué ocurre con la etapa, con las etapas siguientes y con el resultado final?
 2. Un `catch` contiene solo `echo "Ha habido un error: ${err}"`. ¿Por qué es peor que no escribir `try/catch`?
