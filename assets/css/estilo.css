@@ -313,3 +313,84 @@ a:hover { text-decoration-thickness: 2px; }
 .mermaid:not([data-processed]) { white-space: pre; text-align: left; font: .85rem/1.5 var(--mono); }
 .cal-controles p, .cal-controles button { white-space: nowrap; }
 @media (max-width: 480px) { .cal-controles p { min-width: 0; font-size: 1rem; } .cal-controles .cal-hoy { margin-left: .2rem; } }
+
+/* ---------- Portada: unidades + calendario pequeño ---------- */
+.dos-col { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 2.5rem; align-items: start; }
+@media (max-width: 900px) { .dos-col { grid-template-columns: 1fr; gap: 0; } }
+
+/* Pestañas de unidad: solo el nombre */
+.ut-tabs { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: .7rem; }
+.ut-tab {
+  --c: var(--ut1);
+  display: flex; flex-direction: column; align-items: flex-start; gap: .15rem; text-align: left;
+  padding: .85rem 1rem .9rem; background: transparent; color: var(--tinta);
+  border: 1px dashed var(--linea); border-top: 5px solid color-mix(in srgb, var(--c) 45%, transparent);
+  border-radius: 4px 4px var(--radio) var(--radio); font: inherit; cursor: pointer;
+  transition: background-color .15s, transform .15s;
+}
+.ut-tab.ut2 { --c: var(--ut2); } .ut-tab.ut3 { --c: var(--ut3); } .ut-tab.ut4 { --c: var(--ut4); }
+.ut-tab:hover { background: color-mix(in srgb, var(--c) 7%, transparent); }
+.ut-tab.activa { background: var(--papel); border: 1px solid transparent; border-top: 5px solid var(--c); box-shadow: 0 12px 28px -20px var(--c); }
+.ut-tab .ut-cod { font: 800 1.15rem/1.1 var(--display); color: var(--c); }
+.ut-tab .ut-nom { font: 600 .95rem/1.25 var(--texto); }
+.ut-tab .ut-meta { font-size: .8rem; color: var(--tinta-2); }
+.ut-estado { margin-top: .35rem; padding: .05rem .5rem; border-radius: 999px; font-size: .75rem; font-weight: 600; background: color-mix(in srgb, var(--pendiente) 22%, transparent); color: var(--tinta-2); }
+.ut-estado.encurso { background: color-mix(in srgb, var(--encurso) 15%, transparent); color: var(--encurso); }
+.ut-estado.hecha { background: color-mix(in srgb, var(--hecha) 15%, transparent); color: var(--hecha); }
+@media (prefers-reduced-motion: no-preference) { .ut-tab.activa { transform: translateY(-2px); } }
+
+/* Sesiones de la unidad elegida, en el centro */
+.ut-panel {
+  --c: var(--ut1);
+  margin-top: 1rem; padding: 1.4rem 1.6rem 1.2rem; background: var(--papel);
+  border-left: 5px solid var(--c); border-radius: var(--radio);
+}
+.ut-panel.ut2 { --c: var(--ut2); } .ut-panel.ut3 { --c: var(--ut3); } .ut-panel.ut4 { --c: var(--ut4); }
+.ut-panel:focus-visible { outline-offset: 4px; }
+.ut-panel-cab { display: flex; flex-wrap: wrap; align-items: baseline; gap: .2rem 1rem; margin-bottom: .6rem; }
+.ut-panel-cab h3 { margin: 0; font: 800 1.35rem/1.2 var(--display); flex: 1 1 100%; }
+.ut-panel-cab .ut-ra { margin: 0; }
+.ut-indice { font-size: .95rem; font-weight: 600; }
+
+/* Calendario pequeño */
+.cal-lateral h2 { margin-bottom: .6rem; }
+.cal-controles.mini { justify-content: space-between; margin-bottom: .5rem; }
+.cal-controles.mini p { min-width: 0; font-size: 1rem; }
+.cal-controles.mini button { min-width: 2rem; height: 2rem; padding: 0 .5rem; }
+.cal-mini {
+  display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; width: 100%;
+  padding: .6rem; background: var(--papel); border: 1px solid var(--linea); border-radius: var(--radio);
+  font: inherit; color: var(--tinta); cursor: zoom-in; transition: border-color .15s, box-shadow .15s;
+}
+.cal-mini:hover { border-color: var(--encurso); box-shadow: 0 10px 26px -20px var(--encurso); }
+.cm-cab { padding-bottom: .2rem; text-align: center; font-size: .72rem; font-weight: 600; color: var(--tinta-2); }
+.cm-dia {
+  --c: var(--ut1);
+  display: grid; place-items: center; aspect-ratio: 1; border-radius: 6px;
+  font-size: .8rem; font-variant-numeric: tabular-nums; color: var(--tinta-2);
+}
+.cm-dia.finde { opacity: .55; }
+.cm-dia.clase { background: color-mix(in srgb, var(--c) 18%, transparent); color: var(--tinta); font-weight: 600; box-shadow: inset 0 -3px 0 var(--c); }
+.cm-dia.clase.ut2 { --c: var(--ut2); } .cm-dia.clase.ut3 { --c: var(--ut3); } .cm-dia.clase.ut4 { --c: var(--ut4); }
+.cm-dia.clase.pasado { background: transparent; }
+.cm-dia.nolectivo { background: repeating-linear-gradient(135deg, transparent 0 4px, color-mix(in srgb, var(--pendiente) 35%, transparent) 4px 5px); }
+.cm-dia.con-evento { position: relative; }
+.cm-dia.con-evento::after { content: ""; position: absolute; top: 3px; right: 3px; width: 5px; height: 5px; border-radius: 50%; background: var(--aviso); }
+.cm-dia.es-hoy { outline: 2px solid var(--tinta); outline-offset: -2px; color: var(--tinta); font-weight: 800; }
+.cal-lateral .cal-ayuda { margin: .5rem 0 0; font-size: .85rem; }
+
+/* Calendario grande, en un diálogo */
+.cal-dialogo {
+  width: min(1100px, calc(100vw - 2rem)); max-height: calc(100vh - 2rem); padding: 1.2rem 1.4rem 1.4rem;
+  background: var(--fondo); color: var(--tinta); border: 0; border-radius: 14px;
+  box-shadow: 0 30px 80px -20px rgba(0, 0, 0, .45);
+}
+.cal-dialogo::backdrop { background: rgba(10, 16, 32, .55); }
+.cal-dialogo h2 { margin: 0; font: 800 1.6rem/1.2 var(--display); letter-spacing: -.02em; }
+.cal-dialogo:not([open]) { display: none; }
+.cal-cerrar { margin-left: .4rem; font-size: 1.4rem !important; line-height: 1; }
+@media (prefers-reduced-motion: no-preference) {
+  .cal-dialogo[open] { animation: cal-abrir .18s ease-out; }
+  @keyframes cal-abrir { from { opacity: 0; transform: scale(.97); } to { opacity: 1; transform: none; } }
+}
+@media (max-width: 640px) { .cal-dialogo { padding: .9rem; } .cal-dialogo h2 { font-size: 1.3rem; } }
