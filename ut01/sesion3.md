@@ -7,7 +7,7 @@
 Al acabar la sesión, serás capaz de:
 
 1. Distinguir imagen, contenedor, capa y registro, y explicar la relación entre ellos.
-2. Escribir un Dockerfile para una aplicación Node.js que aproveche la caché de capas.
+2. Leer y escribir un Dockerfile para una aplicación Node.js que aproveche la caché de capas.
 3. Construir, etiquetar, ejecutar, inspeccionar y eliminar imágenes y contenedores desde la CLI.
 4. Comprobar de forma objetiva que un contenedor está sano (`/health`, `HEALTHCHECK`).
 
@@ -52,11 +52,11 @@ Los cuatro conceptos se entienden mejor con una analogía de programación orien
  │ RUN npm ci        (node_modules)│  │ capas de solo lectura
  │ COPY package*.json              │  │ = la IMAGEN
  │ WORKDIR /app                    │  │ (compartidas entre contenedores)
- │ FROM node:24-alpine             │  ┘
+ │ FROM node:20                    │  ┘
  └─────────────────────────────────┘
 ```
 
-1. **Las capas se comparten.** Si diez imágenes parten de `node:24-alpine`, esa capa base se descarga y almacena una sola vez.
+1. **Las capas se comparten.** Si diez imágenes parten de `node:20`, esa capa base se descarga y almacena una sola vez.
 2. **Los contenedores son efímeros.** Todo lo que se escribe dentro va a la capa de escritura y desaparece con `docker rm`. Los datos persistentes se guardan en volúmenes (se verá en Docker II).
 3. **Las capas son inmutables.** Borrar un fichero en una capa posterior no reduce el tamaño de la imagen, porque el fichero sigue existiendo en la capa anterior. Esto justificará más adelante las builds multietapa.
 4. **Etiquetas (tags).** `modulo5168-app:v1.2.0` enlaza con el versionado semántico de las sesiones anteriores. Evitad `latest` en despliegues, porque no dice qué versión se está ejecutando y rompe la trazabilidad del pipeline.
@@ -67,20 +67,21 @@ Un **Dockerfile** es un fichero de texto con la receta para construir una imagen
 
 ### Un Dockerfile, línea a línea
 
-Este es el Dockerfile que usaremos en la práctica. Fíjate en qué hace cada línea:
+Este es el Dockerfile que usaremos en la práctica: es el `Dockerfile.singlestage` que trae el laboratorio. Fíjate en qué hace cada línea:
 
 ```
-FROM node:24-alpine         # 1. Parto de una imagen que ya trae Node.js instalado
-WORKDIR /app                # 2. Me sitúo en la carpeta /app (se crea si no existe)
-COPY package*.json ./       # 3. Copio solo la lista de dependencias
-RUN npm ci --omit=dev       # 4. Instalo las dependencias (ocurre al CONSTRUIR la imagen)
-COPY . .                    # 5. Copio el resto del código de la aplicación
-ENV PORT=3000               # 6. Dejo anotada una variable de entorno
-EXPOSE 3000                 # 7. Dejo anotado que la app usa el puerto 3000
-CMD ["node", "server.js"]   # 8. Comando que se ejecutará al ARRANCAR el contenedor
+FROM node:20                            # 1. Parto de una imagen que ya trae Node.js instalado
+WORKDIR /app                            # 2. Me sitúo en la carpeta /app (se crea si no existe)
+COPY package.json package-lock.json ./  # 3. Copio solo la lista de dependencias
+RUN npm ci --omit=dev                   # 4. Instalo las dependencias (ocurre al CONSTRUIR la imagen)
+COPY server.js ./                       # 5. Copio el código de la aplicación
+ENV PORT=3000                           # 6. Dejo anotada una variable de entorno
+ENV APP_VERSION=1.2.0                   # 7. Y otra: la versión que mostrará la app
+EXPOSE 3000                             # 8. Dejo anotado que la app usa el puerto 3000
+CMD ["node", "server.js"]               # 9. Comando que se ejecutará al ARRANCAR el contenedor
 ```
 
-Piensa en ello como montar un mueble: las líneas 1 a 5 **preparan y llenan** la imagen (se hacen una sola vez, al construir). Las líneas 6 a 8 **anotan** cómo debe comportarse cuando alguien la use.
+Piensa en ello como montar un mueble: las líneas 1 a 5 **preparan y llenan** la imagen (se hacen una sola vez, al construir). Las líneas 6 a 9 **anotan** cómo debe comportarse cuando alguien la use.
 
 ### Qué hace cada instrucción
 
@@ -169,7 +170,7 @@ La regla que usa Docker es sencilla: **al reconstruir, reutiliza cada capa mient
 `Dockerfile MALO`
 
 ```
-FROM node:24-alpine
+FROM node:20
 WORKDIR /app
 COPY . .            # cualquier cambio en el código invalida esta capa...
 RUN npm ci          # ...y obliga a reinstalar TODAS las dependencias
@@ -179,7 +180,7 @@ CMD ["node", "server.js"]
 `Dockerfile BUENO`
 
 ```
-FROM node:24-alpine
+FROM node:20
 WORKDIR /app
 COPY package*.json ./   # solo cambia cuando cambian las dependencias
 RUN npm ci              # se reutiliza de caché casi siempre
@@ -199,100 +200,43 @@ Construye la versión mala, cambia un texto de `server.js` y reconstruye: se ver
 
 ## Parte A — Preparar la aplicación
 
-Comprobad que `lab/app` contiene estos ficheros. Si falta alguno, cread los que falten.
-
-`package.json`
+Trabajamos con la aplicación del laboratorio, que está en `lab/app` dentro del zip `modulo5168-lab.zip` (el mismo repositorio que subisteis a Gitea). No hay que crear ningún fichero; solo comprobad que están todos:
 
 ```
-{
-  "name": "modulo5168-app",
-  "version": "1.2.0",
-  "main": "server.js",
-  "scripts": {
-    "start": "node server.js"
-  },
-  "dependencies": {
-    "express": "^4.21.0"
-  }
-}
+cd lab/app
+ls -la
 ```
 
-`server.js`
+| Fichero                  | Qué es                                                                                                       |
+|--------------------------|--------------------------------------------------------------------------------------------------------------|
+| `server.js`              | La aplicación (Express). Rutas `/`, `/health`, `/version`, `/counter` (usa Redis, UT3) y `/metrics` (UT4)     |
+| `package.json`           | Nombre, versión (`1.2.0`) y dependencias (`express` y `redis`)                                               |
+| `package-lock.json`      | Versiones exactas de cada dependencia. Imprescindible para `npm ci`                                          |
+| `.dockerignore`          | Lo que Docker deja fuera del contexto de build                                                               |
+| `Dockerfile.singlestage` | El Dockerfile de hoy, de una sola etapa                                                                      |
+| `Dockerfile`             | Versión mejorada, con usuario no root, `HEALTHCHECK` y dos etapas. Se usa en la parte E y en la sesión 4. No lo modifiquéis |
 
-```
-const express = require('express');
-const { version } = require('./package.json');
+Dos detalles de esta aplicación:
 
-const app = express();
-const PORT = process.env.PORT || 3000;
+- **La versión que muestra la app** (`/health` y `/version`) no sale de `package.json`, sino de la variable `APP_VERSION` que fija el Dockerfile. Por eso, cuando cambiéis de versión, hay que actualizar los dos sitios.
+- **Redis todavía no existe.** Al arrancar veréis en los logs `Redis no disponible`. Es normal: la app funciona igual y solo `/counter` devuelve un error 503 hasta la UT3.
 
-app.get('/', (req, res) => {
-  res.send(`Hola desde modulo5168-app v${version}`);
-});
-
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', version, uptime: process.uptime() });
-});
-
-// 0.0.0.0 es obligatorio: si escucha en 127.0.0.1,
-// no es accesible desde fuera del contenedor
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`modulo5168-app v${version} escuchando en el puerto ${PORT}`);
-});
-```
-
-`.dockerignore`
+El `.dockerignore` del laboratorio solo excluye `node_modules` y `npm-debug.log`. Completadlo para que tampoco entren la carpeta `.git` ni la documentación:
 
 ```
 node_modules
 npm-debug.log
 .git
 .gitignore
-Dockerfile*
-.dockerignore
 *.md
-```
-
-Generad el `package-lock.json`, que es imprescindible para `npm ci`:
-
-```
-cd lab/app
-npm install
-```
-
-Si algún equipo no tiene Node instalado en el anfitrión, puede generarlo con Docker sin instalar nada:
-
-```
-docker run --rm -v "$PWD":/app -w /app node:24-alpine npm install
 ```
 
 ## Parte B — Construir y ejecutar
 
-`Dockerfile (versión correcta)`
+Construid la imagen con `Dockerfile.singlestage`. Como no se llama `Dockerfile`, hay que indicarlo con `-f`:
 
 ```
-FROM node:24-alpine
-
-WORKDIR /app
-
-# 1) Dependencias: capa que casi nunca cambia
-COPY package*.json ./
-RUN npm ci --omit=dev
-
-# 2) Código: capa que cambia en cada commit
-COPY . .
-
-ENV NODE_ENV=production \
-    PORT=3000
-EXPOSE 3000
-
-CMD ["node", "server.js"]
-```
-
-Construcción y ejecución:
-
-```
-docker build -t modulo5168-app:v1.2.0 .
+docker build -f Dockerfile.singlestage -t modulo5168-app:v1.2.0 .
 docker images modulo5168-app
 docker run -d -p 3001:3000 --name test-app modulo5168-app:v1.2.0
 docker ps
@@ -311,17 +255,19 @@ La respuesta esperada es algo como `{"status":"ok","version":"1.2.0","uptime":3.
 
 ## Parte C — Experimento de caché
 
-Este es el núcleo de la sesión: medir el efecto del orden de las instrucciones.
+Este es el núcleo de la sesión: medir el efecto del orden de las instrucciones. `Dockerfile.singlestage` hace las cosas en el orden correcto (primero dependencias, después código). Para compararlo, cread una versión con el orden equivocado.
 
-**Paso 1.** Cread `Dockerfile.malo`:
+**Paso 1.** Cread `Dockerfile.malo` junto a los otros dos:
 
 `Dockerfile.malo`
 
 ```
-FROM node:24-alpine
+FROM node:20
 WORKDIR /app
 COPY . .
 RUN npm ci --omit=dev
+ENV PORT=3000
+EXPOSE 3000
 CMD ["node", "server.js"]
 ```
 
@@ -329,27 +275,29 @@ CMD ["node", "server.js"]
 
 ```
 docker build -f Dockerfile.malo -t modulo5168-app:malo .
-docker build -t modulo5168-app:bueno .
+docker build -f Dockerfile.singlestage -t modulo5168-app:bueno .
 ```
 
-**Paso 3.** Cambiad el mensaje de la ruta `/` en `server.js` (cualquier texto) y reconstruid ambas midiendo el tiempo y mostrando el detalle de cada paso:
+**Paso 3.** Cambiad el mensaje de la ruta `/` en `server.js` (cualquier texto), guardad el fichero y reconstruid ambas midiendo el tiempo y mostrando el detalle de cada paso:
 
 ```
 # Linux / macOS / Git Bash
 time docker build --progress=plain -f Dockerfile.malo -t modulo5168-app:malo .
-time docker build --progress=plain -t modulo5168-app:bueno .
+time docker build --progress=plain -f Dockerfile.singlestage -t modulo5168-app:bueno .
 # PowerShell
 Measure-Command { docker build -f Dockerfile.malo -t modulo5168-app:malo . }
-Measure-Command { docker build -t modulo5168-app:bueno . }
+Measure-Command { docker build -f Dockerfile.singlestage -t modulo5168-app:bueno . }
 ```
 
 **Paso 4.** Anotad los resultados en una tabla:
 
-| Situación                                                | Dockerfile malo | Dockerfile bueno |
-|----------------------------------------------------------|-----------------|------------------|
-| Tiempo tras cambiar `server.js`                          |                 |                  |
-| ¿`npm ci` sale como `CACHED`?                            |                 |                  |
-| Tiempo tras añadir una dependencia (`npm install dayjs`) |                 |                  |
+| Situación                                                | `Dockerfile.malo` | `Dockerfile.singlestage` |
+|----------------------------------------------------------|-------------------|--------------------------|
+| Tiempo tras cambiar `server.js`                          |                   |                          |
+| ¿`npm ci` sale como `CACHED`?                            |                   |                          |
+| Tiempo tras añadir una dependencia (`npm install dayjs`) |                   |                          |
+
+Para la última fila, si no tenéis Node en el equipo podéis añadir la dependencia con Docker: `docker run --rm -v "$PWD":/app -w /app node:20-alpine npm install dayjs`. Al terminar, dejad el proyecto como estaba con `git checkout package.json package-lock.json`.
 
 **Paso 5.** Responded: ¿en qué caso los dos Dockerfiles tardan lo mismo, y por qué?
 
@@ -387,36 +335,36 @@ docker stats test-app --no-stream
 
 ## Parte E — Mejoras: seguridad, salud y nueva versión
 
-Mejorad el Dockerfile con dos buenas prácticas y publicad una versión de parche.
+El `Dockerfile` principal del laboratorio es una versión mejorada de `Dockerfile.singlestage`. No hay que escribirlo: abridlo y localizad las dos buenas prácticas que añade.
 
-`Dockerfile (mejorado)`
+`Dockerfile`
 
 ```
-FROM node:24-alpine
-
+# Etapa 1: instalar dependencias (con el package-lock.json, para builds reproducibles)
+FROM node:20-alpine AS builder
 WORKDIR /app
-
-COPY package*.json ./
+COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 
-# --chown para que el usuario node sea el propietario de los ficheros
-COPY --chown=node:node . .
-
-ENV NODE_ENV=production \
-    PORT=3000
-EXPOSE 3000
-
-# No ejecutar como root: la imagen oficial de Node ya trae el usuario "node"
+# Etapa 2: imagen final, mínima
+FROM node:20-alpine
+WORKDIR /app
+COPY --from=builder /app/node_modules ./node_modules
+COPY server.js package.json ./
+ENV PORT=3000
+ENV APP_VERSION=1.2.0
+# Buena práctica: no ejecutar como root (la imagen node trae el usuario "node")
 USER node
-
-# Docker comprueba periódicamente que la app responde
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget -qO- http://localhost:3000/health || exit 1
-
+EXPOSE 3000
+HEALTHCHECK --interval=30s --timeout=3s CMD wget -qO- http://localhost:3000/health || exit 1
 CMD ["node", "server.js"]
 ```
 
-Subid la versión a `1.2.1` en `package.json` (es un cambio que no añade funcionalidad, así que es un *patch* según SemVer) y desplegad:
+- **`USER node`**: la aplicación deja de ejecutarse como root. Si alguien la compromete, no tendrá privilegios de administrador dentro del contenedor.
+- **`HEALTHCHECK`**: Docker llama a `/health` cada 30 segundos y marca el contenedor como `(healthy)` o `(unhealthy)`.
+- Además tiene **dos `FROM`** (dos etapas) y usa `node:20-alpine`. Es lo que se estudia en la sesión 4; de momento basta con saber que la imagen final sale mucho más pequeña.
+
+Pasar a esta imagen no añade funcionalidad, así que según SemVer es un *patch*: `1.2.1`. Cambiad la versión en `package.json` (`"version": "1.2.1"`) y en la línea `ENV APP_VERSION=1.2.1` del `Dockerfile`, y desplegad. Como ahora se usa el fichero `Dockerfile`, no hace falta `-f`:
 
 ```
 docker build -t modulo5168-app:v1.2.1 .
@@ -438,7 +386,7 @@ git push origin main --tags
 
 ## Reto de ampliación (para quien acabe antes)
 
-1. Comparad el tamaño de la imagen usando `node:24` en vez de `node:24-alpine`. ¿Cuánto cambia? ¿Qué se pierde con Alpine? Pista: no trae `bash` y usa `musl` en lugar de `glibc`.
+1. Comparad el tamaño de `modulo5168-app:v1.2.0` (`node:20`) con el de `modulo5168-app:v1.2.1` (`node:20-alpine`). ¿Cuánto cambia? ¿Qué se pierde con Alpine? Pista: no trae `bash` y usa `musl` en lugar de `glibc`. En la sesión 4 lo mediréis a fondo.
 2. Levantad dos contenedores de la misma imagen a la vez, en los puertos 3002 y 3003. ¿Por qué no pueden usar ambos el mismo puerto del anfitrión?
 3. Haced que la app falle a propósito (por ejemplo, que `/health` devuelva un error 500) y observad cómo `docker ps` pasa a mostrar `(unhealthy)`.
 
@@ -484,7 +432,7 @@ Pueden lanzarse oralmente o en un formulario rápido:
 
 **Entregable** (en Aules):
 
-- Dockerfile final y `.dockerignore`.
+- `Dockerfile.malo` y el `.dockerignore` completado.
 - Captura de `docker ps` con el contenedor `(healthy)` y de la respuesta de `/health` con la versión 1.2.1.
 - Tabla del experimento de caché con la conclusión en dos o tres líneas.
 - Respuestas a las preguntas de control de las partes B y D.
