@@ -50,7 +50,7 @@ cd lab/app
 ls -la
 ```
 
-Debe contener `server.js`, `package.json`, `package-lock.json`, `.dockerignore`, `Dockerfile` (multi-stage) y `Dockerfile.singlestage`. Las dos versiones del Dockerfile ya vienen en el laboratorio: hoy se trata sobre todo de analizarlas y medirlas (en el paso 6 crearéis un tercer Dockerfile para el experimento de caché).
+Debe contener `server.js`, `package.json`, `package-lock.json`, `.dockerignore`, `Dockerfile` (multi-stage), `Dockerfile.singlestage` y el `Dockerfile.malo` que creasteis en la sesión 3. Hoy no hay que escribir Dockerfiles nuevos: se trata de analizarlos y medirlos.
 
 ### Paso 2. Analizar y construir la versión single-stage
 
@@ -91,7 +91,7 @@ WORKDIR /app
 COPY --from=builder /app/node_modules ./node_modules
 COPY server.js package.json ./
 ENV PORT=3000
-ENV APP_VERSION=1.2.0
+ENV APP_VERSION=1.2.1
 USER node
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=3s CMD wget -qO- http://localhost:3000/health || exit 1
@@ -136,35 +136,25 @@ En la columna STATUS, `app-multi` debe mostrar `(healthy)` y `app-single` no mos
 
 ### Paso 6. Caché: el orden de las instrucciones importa
 
-Los dos Dockerfiles del laboratorio copian `package.json` y `package-lock.json` antes que `server.js`, así que los dos aprovechan bien la caché. Para ver qué pasa cuando el orden es incorrecto, cread un tercer fichero, `Dockerfile.mal`, que copia todo el código antes de instalar las dependencias:
-
-```
-FROM node:20-alpine
-WORKDIR /app
-COPY . .
-RUN npm ci --omit=dev
-ENV PORT=3000
-EXPOSE 3000
-CMD ["node", "server.js"]
-```
+En la sesión 3 comparasteis `Dockerfile.malo` (copia todo el código antes de instalar las dependencias) con `Dockerfile.singlestage`. Ahora repetid el experimento contra la versión multi-stage, para comprobar que las dos etapas no estropean la caché.
 
 Construid las dos versiones una primera vez para que quede todo en caché:
 
 ```
-docker build -f Dockerfile.mal -t modulo5168-app:mal .
+docker build -f Dockerfile.malo -t modulo5168-app:malo .
 docker build -t modulo5168-app:multistage .
 ```
 
 Ahora cambiad el texto de la ruta `/` en `server.js` (por ejemplo, `Hola desde el módulo 5168` → `Hola desde la sesión 4`), guardad el fichero y reconstruid las dos midiendo el tiempo:
 
 ```
-time docker build -f Dockerfile.mal -t modulo5168-app:mal .
+time docker build -f Dockerfile.malo -t modulo5168-app:malo .
 time docker build -t modulo5168-app:multistage .
 ```
 
 Comparad la salida de los dos builds:
 
-- En `Dockerfile.mal`, `COPY . .` ya no sale de caché porque ha cambiado un fichero, y por eso **`RUN npm ci` se vuelve a ejecutar entero** y se descargan otra vez todas las dependencias.
+- En `Dockerfile.malo`, `COPY . .` ya no sale de caché porque ha cambiado un fichero, y por eso **`RUN npm ci` se vuelve a ejecutar entero** y se descargan otra vez todas las dependencias.
 - En `Dockerfile`, la etapa `builder` sale completa como `CACHED` (incluido `RUN npm ci`) y solo se rehace `COPY server.js package.json ./`.
 
 Conclusión: una instrucción que cambia invalida la caché de todas las que vienen detrás. Por eso se copian primero los ficheros que cambian poco (dependencias) y al final los que cambian mucho (código).
@@ -175,13 +165,13 @@ Si algún build falla con `EAI_AGAIN` o `Temporary failure resolving`, es el DNS
 
 ### Paso 7. Versionar el resultado
 
-Habéis añadido `Dockerfile.mal` y cambiado el texto de `server.js`, sin funcionalidad nueva: según SemVer es un **parche**. Como la sesión 3 terminó en `v1.2.1`, la versión de hoy es `v1.2.2`. Cada versión lleva una etiqueta nueva: si intentáis reutilizar una que ya existe, Git la rechaza (`tag 'v1.2.1' already exists`).
+Habéis cambiado el texto de `server.js`, sin funcionalidad nueva: según SemVer es un **parche**. Como la sesión 3 terminó en `v1.2.1`, la versión de hoy es `v1.2.2`. Cada versión lleva una etiqueta nueva: si intentáis reutilizar una que ya existe, Git la rechaza (`tag 'v1.2.1' already exists`).
 
 Antes del commit, subid la versión a `1.2.2` en `package.json` y en la línea `ENV APP_VERSION` del `Dockerfile`, que es lo que devuelve `/version`.
 
 ```
-git add Dockerfile Dockerfile.mal package.json server.js
-git commit -m "chore: comparativa de caché con Dockerfile.mal (v1.2.2)"
+git add Dockerfile package.json server.js
+git commit -m "chore: comparativa single-stage y multi-stage (v1.2.2)"
 git tag -a v1.2.2 -m "Sesión 4: comparativa de imágenes y caché"
 git push origin main --tags
 docker tag modulo5168-app:multistage modulo5168-app:v1.2.2
@@ -203,8 +193,8 @@ Tabla comparativa rellenada con los datos reales obtenidos:
 
 Y una segunda tabla con el resultado del paso 6:
 
-|                                                  | `Dockerfile.mal` | `Dockerfile` (multi-stage) |
-|--------------------------------------------------|------------------|----------------------------|
+|                                                  | `Dockerfile.malo` | `Dockerfile` (multi-stage) |
+|--------------------------------------------------|-------------------|----------------------------|
 | ¿Se vuelve a ejecutar `npm ci` al cambiar `server.js`? |            |                            |
 | Tiempo del rebuild (`time`)                      |                  |                            |
 
