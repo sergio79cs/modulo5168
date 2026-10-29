@@ -18,23 +18,38 @@ portada: true
   <p class="leyenda"><span class="ley hecha">Hecha</span><span class="ley encurso">En curso</span><span class="ley pendiente">Pendiente</span></p>
 </section>
 
-<section class="bloque" id="calendario" aria-labelledby="cal-h">
-  <div class="cal-barra">
+<div class="dos-col">
+  <section class="bloque" id="unidades" aria-labelledby="uts-h">
+    <h2 id="uts-h">Unidades de trabajo</h2>
+    <div class="ut-tabs" id="uts" role="tablist" aria-label="Unidades de trabajo"></div>
+    <div class="ut-panel" id="ut-panel" role="tabpanel" tabindex="0"></div>
+  </section>
+
+  <aside class="bloque cal-lateral" id="calendario" aria-labelledby="cal-h">
     <h2 id="cal-h">Calendario</h2>
+    <div class="cal-controles mini">
+      <button type="button" data-cal-ant aria-label="Mes anterior">‹</button>
+      <p data-cal-mes aria-live="polite"></p>
+      <button type="button" data-cal-sig aria-label="Mes siguiente">›</button>
+    </div>
+    <button type="button" class="cal-mini" id="cal-mini" aria-haspopup="dialog" aria-label="Abrir el calendario en grande con las sesiones"></button>
+    <p class="cal-ayuda">Pulsa el calendario para verlo en grande con las sesiones.</p>
+  </aside>
+</div>
+
+<dialog class="cal-dialogo" id="cal-dialogo" aria-labelledby="cal-dlg-h">
+  <div class="cal-barra">
+    <h2 id="cal-dlg-h">Calendario</h2>
     <div class="cal-controles">
-      <button type="button" id="cal-ant" aria-label="Mes anterior">‹</button>
-      <p id="cal-mes" aria-live="polite"></p>
-      <button type="button" id="cal-sig" aria-label="Mes siguiente">›</button>
-      <button type="button" id="cal-hoy" class="cal-hoy">Ir a hoy</button>
+      <button type="button" data-cal-ant aria-label="Mes anterior">‹</button>
+      <p data-cal-mes aria-live="polite"></p>
+      <button type="button" data-cal-sig aria-label="Mes siguiente">›</button>
+      <button type="button" data-cal-hoy class="cal-hoy">Ir a hoy</button>
+      <button type="button" class="cal-cerrar" aria-label="Cerrar el calendario">×</button>
     </div>
   </div>
   <p class="cal-ayuda">Pulsa un día de clase para abrir la sesión que toca.</p>
   <div class="cal" id="cal"></div>
-</section>
-
-<section class="bloque" id="unidades" aria-labelledby="uts-h">
-  <h2 id="uts-h">Unidades de trabajo</h2>
-  <div class="uts" id="uts"></div>
-</section>
+</dialog>
 
 <noscript><p>Activa JavaScript para ver el calendario. El material está en <a href="ut01/">UT01</a>.</p></noscript>
