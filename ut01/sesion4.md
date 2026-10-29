@@ -101,7 +101,7 @@ CMD ["node", "server.js"]
 Fijaos en qué hace cada etapa, qué copia `COPY --from=builder` y para qué sirven `USER node` y `HEALTHCHECK`.
 
 ```
-docker build -t modulo5168-app:v1.1.0 .
+docker build -t modulo5168-app:multistage .
 ```
 
 ### Paso 4. Medir y comparar
@@ -112,11 +112,11 @@ docker images | grep modulo5168-app
 
 # Capas de cada imagen
 docker history modulo5168-app:singlestage
-docker history modulo5168-app:v1.1.0
+docker history modulo5168-app:multistage
 
 # Usuario de ejecución
 docker run --rm modulo5168-app:singlestage whoami
-docker run --rm modulo5168-app:v1.1.0 whoami
+docker run --rm modulo5168-app:multistage whoami
 ```
 
 La single-stage debe responder `root`; la multi-stage, `node`.
@@ -126,7 +126,7 @@ La single-stage debe responder `root`; la multi-stage, `node`.
 ```
 docker rm -f test-app 2>/dev/null     # el contenedor de la sesión 3, si sigue en marcha
 docker run -d --name app-single -p 3002:3000 modulo5168-app:singlestage
-docker run -d --name app-multi  -p 3003:3000 modulo5168-app:v1.1.0
+docker run -d --name app-multi  -p 3003:3000 modulo5168-app:multistage
 # esperar unos segundos
 docker ps
 curl http://localhost:3003/health
@@ -152,14 +152,14 @@ Construid las dos versiones una primera vez para que quede todo en caché:
 
 ```
 docker build -f Dockerfile.mal -t modulo5168-app:mal .
-docker build -t modulo5168-app:v1.1.0 .
+docker build -t modulo5168-app:multistage .
 ```
 
 Ahora cambiad el texto de la ruta `/` en `server.js` (por ejemplo, `Hola desde el módulo 5168` → `Hola desde la sesión 4`), guardad el fichero y reconstruid las dos midiendo el tiempo:
 
 ```
 time docker build -f Dockerfile.mal -t modulo5168-app:mal .
-time docker build -t modulo5168-app:v1.1.0 .
+time docker build -t modulo5168-app:multistage .
 ```
 
 Comparad la salida de los dos builds:
@@ -173,13 +173,25 @@ Si todo os sale `CACHED` después de editar, comprobad que habéis guardado `ser
 
 Si algún build falla con `EAI_AGAIN` o `Temporary failure resolving`, es el DNS de la red del centro: fija el DNS de Docker como indica el paso 1 de la guía de instalación (clave `dns` en `/etc/docker/daemon.json`, sin borrar el resto) y reinicia Docker.
 
-Si el repositorio ya está en Gitea, es buen momento para hacer `git commit` y `git tag v1.1.0`, de modo que la etiqueta de la imagen coincida con la del código.
+### Paso 7. Versionar el resultado
+
+Habéis añadido `Dockerfile.mal` y cambiado el texto de `server.js`, sin funcionalidad nueva: según SemVer es un **parche**. Como la sesión 3 terminó en `v1.1.1`, la versión de hoy es `v1.1.2`. No reutilicéis `v1.1.0`: esa etiqueta ya existe desde la sesión 1 y Git la rechazaría (`tag 'v1.1.0' already exists`).
+
+```
+git add Dockerfile.mal server.js
+git commit -m "chore: comparativa de caché con Dockerfile.mal (v1.1.2)"
+git tag -a v1.1.2 -m "Sesión 4: comparativa de imágenes y caché"
+git push origin main --tags
+docker tag modulo5168-app:multistage modulo5168-app:v1.1.2
+```
+
+Así la etiqueta de la imagen coincide con la del código.
 
 ## Entregable
 
 Tabla comparativa rellenada con los datos reales obtenidos:
 
-|                                                         | `singlestage` | `v1.1.0` (multi-stage) |
+|                                                         | `singlestage` | `multistage`           |
 |---------------------------------------------------------|---------------|------------------------|
 | Imagen base de la imagen final                          |               |                        |
 | Tamaño (`docker images`)                                |               |                        |
