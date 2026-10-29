@@ -47,7 +47,7 @@ se encuentren entre sí por su nombre:
 | Jenkins | Automatizar todo el proceso en un pipeline | Sesión 8 |
 
 A lo largo de la unidad trabajaremos siempre con **la misma aplicación**, una API
-sencilla en Node.js con Express. La irás versionando (v1.0.0, v1.1.0, v1.1.1…),
+sencilla en Node.js con Express. La irás versionando (v1.0.0, v1.1.0, v1.2.0…),
 así que al final tendrás un historial real con varias versiones que comparar.
 
 ## Sesiones
