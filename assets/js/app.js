@@ -134,72 +134,158 @@
     if (ol && el && ol.scrollWidth > ol.clientWidth) ol.scrollLeft = el.offsetLeft - ol.offsetLeft - 60;
   }
 
-  /* ---------- Calendario mensual ---------- */
+  /* ---------- Calendario: pequeño en la portada, grande en un diálogo ---------- */
   function pintarCalendario() {
-    const caja = document.getElementById("cal");
-    if (!caja) return;
+    const grande = document.getElementById("cal");
+    const mini = document.getElementById("cal-mini");
+    const dialogo = document.getElementById("cal-dialogo");
+    if (!grande && !mini) return;
     const ini = aFecha(CONFIG.inicio), fin = aFecha(CONFIG.fin);
-    let mes = new Date(Math.min(Math.max(hoy, ini), fin)); mes.setDate(1);
-    const titulo = document.getElementById("cal-mes");
-    const btnAnt = document.getElementById("cal-ant"), btnSig = document.getElementById("cal-sig"), btnHoy = document.getElementById("cal-hoy");
+    const mesDe = (d) => { const m = new Date(Math.min(Math.max(d, ini), fin)); m.setDate(1); return m; };
+    let mes = mesDe(hoy);
+    const todos = (sel) => document.querySelectorAll(sel);
 
-    function dibujar() {
-      titulo.textContent = MESES[mes.getMonth()].replace(/^./, (c) => c.toUpperCase()) + " " + mes.getFullYear();
-      btnAnt.disabled = mes <= new Date(ini.getFullYear(), ini.getMonth(), 1);
-      btnSig.disabled = mes >= new Date(fin.getFullYear(), fin.getMonth(), 1);
-      const primero = new Date(mes);
-      const hueco = (primero.getDay() + 6) % 7;
+    function celdas(esGrande) {
+      const hueco = (mes.getDay() + 6) % 7;
       const nDias = new Date(mes.getFullYear(), mes.getMonth() + 1, 0).getDate();
-      let html = ["L", "M", "X", "J", "V", "S", "D"].map((d) => `<div class="cal-cab" aria-hidden="true">${d}</div>`).join("");
-      for (let i = 0; i < hueco; i++) html += `<div class="cal-dia vacio"></div>`;
+      const pre = esGrande ? "cal" : "cm";
+      let html = ["L", "M", "X", "J", "V", "S", "D"].map((d) => `<span class="${pre}-cab" aria-hidden="true">${d}</span>`).join("");
+      for (let i = 0; i < hueco; i++) html += `<span class="${pre}-dia vacio"></span>`;
       for (let n = 1; n <= nDias; n++) {
         const f = new Date(mes.getFullYear(), mes.getMonth(), n);
         const k = clave(f);
-        const cls = ["cal-dia"];
+        const cls = [pre + "-dia"];
         if (k === clave(hoy)) cls.push("es-hoy");
         if (f < hoy) cls.push("pasado");
         if (f.getDay() === 0 || f.getDay() === 6) cls.push("finde");
+        const c = clases[k];
+        const nl = noLectivo[k] && !cls.includes("finde");
+        if (!esGrande) {
+          if (c) cls.push("clase", "ut" + c.s.ut);
+          else if (nl) cls.push("nolectivo");
+          if (eventos[k]) cls.push("con-evento");
+          const tip = c ? `UT0${c.s.ut} · Sesión ${c.s.n}: ${c.s.titulo}` : nl ? noLectivo[k] : eventos[k] || "";
+          html += `<span class="${cls.join(" ")}"${tip ? ` title="${esc(tip)}"` : ""}>${n}</span>`;
+          continue;
+        }
         const ev = eventos[k] ? `<span class="cal-evento">${esc(eventos[k])}</span>` : "";
         const hoyTxt = k === clave(hoy) ? " (hoy)" : "";
-        if (clases[k]) {
-          const c = clases[k], s = c.s;
+        if (c) {
+          const s = c.s;
           const parte = c.de > 1 ? ` <span class="cal-parte">${c.parte}/${c.de}</span>` : "";
-          html += `<a class="${cls.join(" ")} clase ut${s.ut}" href="${url(s.url)}" aria-label="${largo(f)}${hoyTxt}: sesión ${s.n}, ${esc(s.titulo)}">
+          html += `<a class="${cls.join(" ")} clase ut${s.ut}" href="${url(s.url)}" aria-label="${largo(f)}${hoyTxt}: UT0${s.ut}, sesión ${s.n}, ${esc(s.titulo)}">
             <span class="cal-num">${n}</span>
             <span class="cal-ses">S${s.n}${parte}</span>
             <span class="cal-nombre">${esc(s.corto)}</span>${ev}</a>`;
-        } else if (noLectivo[k] && !cls.includes("finde")) {
+        } else if (nl) {
           html += `<div class="${cls.join(" ")} nolectivo" title="${esc(noLectivo[k])}"><span class="cal-num">${n}</span><span class="cal-nombre">${esc(noLectivo[k])}</span>${ev}</div>`;
         } else {
           html += `<div class="${cls.join(" ")}${ev ? " con-evento" : ""}"><span class="cal-num">${n}</span>${ev}</div>`;
         }
       }
       const resto = (7 - ((hueco + nDias) % 7)) % 7;
-      for (let i = 0; i < resto; i++) html += `<div class="cal-dia vacio"></div>`;
-      caja.innerHTML = html;
+      for (let i = 0; i < resto; i++) html += `<span class="${pre}-dia vacio"></span>`;
+      return html;
     }
-    btnAnt.onclick = () => { mes.setMonth(mes.getMonth() - 1); dibujar(); };
-    btnSig.onclick = () => { mes.setMonth(mes.getMonth() + 1); dibujar(); };
-    btnHoy.onclick = () => { mes = new Date(Math.min(Math.max(hoy, ini), fin)); mes.setDate(1); dibujar(); };
+
+    function dibujar() {
+      const titulo = MESES[mes.getMonth()].replace(/^./, (c) => c.toUpperCase()) + " " + mes.getFullYear();
+      todos("[data-cal-mes]").forEach((e) => (e.textContent = titulo));
+      todos("[data-cal-ant]").forEach((b) => (b.disabled = mes <= new Date(ini.getFullYear(), ini.getMonth(), 1)));
+      todos("[data-cal-sig]").forEach((b) => (b.disabled = mes >= new Date(fin.getFullYear(), fin.getMonth(), 1)));
+      if (grande) grande.innerHTML = celdas(true);
+      if (mini) mini.innerHTML = celdas(false);
+    }
+
+    todos("[data-cal-ant]").forEach((b) => (b.onclick = () => { mes.setMonth(mes.getMonth() - 1); dibujar(); }));
+    todos("[data-cal-sig]").forEach((b) => (b.onclick = () => { mes.setMonth(mes.getMonth() + 1); dibujar(); }));
+    todos("[data-cal-hoy]").forEach((b) => (b.onclick = () => { mes = mesDe(hoy); dibujar(); }));
+
+    if (mini && dialogo && dialogo.showModal) {
+      mini.onclick = () => dialogo.showModal();
+      dialogo.querySelector(".cal-cerrar").onclick = () => dialogo.close();
+      // Cerrar al pulsar fuera del recuadro
+      dialogo.addEventListener("click", (e) => { if (e.target === dialogo) dialogo.close(); });
+      // El enlace "Calendario" del menú abre el calendario grande
+      const abrirSiToca = () => { if (location.hash === "#calendario" && !dialogo.open) dialogo.showModal(); };
+      window.addEventListener("hashchange", abrirSiToca);
+      abrirSiToca();
+    } else if (mini && grande) {
+      // Navegadores sin <dialog>: el calendario grande se muestra debajo
+      dialogo.setAttribute("open", "");
+      mini.hidden = true;
+    }
     dibujar();
   }
 
-  /* ---------- Lista de unidades ---------- */
+  /* ---------- Unidades: pestañas y sesiones de la unidad elegida ---------- */
   function pintarUnidades() {
-    const caja = document.getElementById("uts");
-    if (!caja) return;
-    caja.innerHTML = UNIDADES.map((u) => {
-      const ses = SESIONES.filter((s) => s.ut === u.ut);
+    const tabs = document.getElementById("uts");
+    const panel = document.getElementById("ut-panel");
+    if (!tabs || !panel) return;
+
+    // Por defecto, la unidad que se está dando en clase (la de la próxima clase)
+    const kHoy = clave(hoy);
+    const prox = fechasClase.find((k) => k >= kHoy) || fechasClase[fechasClase.length - 1];
+    let sel = prox ? clases[prox].s.ut : UNIDADES[0].ut;
+
+    const estadoUT = (u) => {
+      const es = SESIONES.filter((s) => s.ut === u.ut).map(estado);
+      if (!es.length) return "pronto";
+      if (es.every((e) => e === "hecha")) return "hecha";
+      if (es.some((e) => e !== "pendiente")) return "encurso";
+      return "pendiente";
+    };
+    const ETIQUETA = { hecha: "Terminada", encurso: "En curso", pendiente: "Próximamente", pronto: "En preparación" };
+
+    function dibujar() {
+      tabs.innerHTML = UNIDADES.map((u) => {
+        const n = SESIONES.filter((s) => s.ut === u.ut).length;
+        const e = estadoUT(u);
+        const activa = u.ut === sel;
+        return `<button type="button" role="tab" id="tab-ut${u.ut}" aria-controls="ut-panel" aria-selected="${activa}" tabindex="${activa ? 0 : -1}"
+          class="ut-tab ut${u.ut} ${e}${activa ? " activa" : ""}">
+          <span class="ut-cod">UT0${u.ut}</span>
+          <span class="ut-nom">${esc(u.titulo)}</span>
+          <span class="ut-meta">${u.ra} · ${n ? n + " sesiones" : "sin sesiones"}</span>
+          <span class="ut-estado ${e}">${ETIQUETA[e]}</span>
+        </button>`;
+      }).join("");
+
+      const u = UNIDADES.find((x) => x.ut === sel);
+      const ses = SESIONES.filter((s) => s.ut === sel);
       const lista = ses.length ? `<ol class="ut-sesiones">` + ses.map((s) => {
         const r = rango[s.ut + "-" + s.n];
         const f = r ? `<span class="ut-fecha">${r.primero.getDate()} ${MESES[r.primero.getMonth()].slice(0, 3)}</span>` : "";
         return `<li class="${estado(s)}"><a href="${url(s.url)}"><span class="ut-sn">${s.n}</span><span>${esc(s.titulo)}</span>${f}</a></li>`;
       }).join("") + "</ol>" : `<p class="ut-vacia">El material se publicará cuando empiece la unidad.</p>`;
-      const cab = u.url ? `<a href="${url(u.url)}">UT0${u.ut}</a>` : `UT0${u.ut}`;
-      return `<article class="ut ut${u.ut}${u.url ? "" : " pronto"}">
-        <h3><span class="ut-cod">${cab}</span> <span class="ut-nom">${esc(u.titulo)}</span></h3>
-        <p class="ut-ra">${u.ra}</p>${lista}</article>`;
-    }).join("");
+      const indice = u.url ? `<a class="ut-indice" href="${url(u.url)}">Índice de la UT0${u.ut} →</a>` : "";
+      panel.className = "ut-panel ut" + sel;
+      panel.setAttribute("aria-labelledby", "tab-ut" + sel);
+      panel.innerHTML = `<div class="ut-panel-cab">
+          <h3><span class="ut-cod">UT0${u.ut}</span> ${esc(u.titulo)}</h3>
+          <p class="ut-ra">${u.ra}</p>${indice}
+        </div>${lista}`;
+    }
+
+    function elegir(ut, foco) {
+      sel = ut; dibujar();
+      if (foco) document.getElementById("tab-ut" + ut).focus();
+    }
+    tabs.addEventListener("click", (e) => {
+      const b = e.target.closest(".ut-tab");
+      if (b) elegir(Number(b.id.replace("tab-ut", "")), true);
+    });
+    tabs.addEventListener("keydown", (e) => {
+      const i = UNIDADES.findIndex((u) => u.ut === sel);
+      let j = null;
+      if (e.key === "ArrowRight") j = (i + 1) % UNIDADES.length;
+      else if (e.key === "ArrowLeft") j = (i - 1 + UNIDADES.length) % UNIDADES.length;
+      else if (e.key === "Home") j = 0;
+      else if (e.key === "End") j = UNIDADES.length - 1;
+      if (j !== null) { e.preventDefault(); elegir(UNIDADES[j].ut, true); }
+    });
+    dibujar();
   }
 
   /* ---------- Bloques de código ---------- */
