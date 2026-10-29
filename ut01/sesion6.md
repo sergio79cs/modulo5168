@@ -57,7 +57,7 @@ Levantar la app de sesiones anteriores y comprobar a mano. El contenedor se llam
 
 ```
 docker rm -f test-app app 2>/dev/null
-docker run -d --name app --network lab5168 -p 3001:3000 modulo5168-app:v1.1.1
+docker run -d --name app --network lab5168 -p 3001:3000 modulo5168-app:v1.3.0
 curl http://localhost:3001/version
 ```
 
@@ -69,7 +69,7 @@ El script del guion original tiene dos fallos que conviene que descubran: da PAS
 #!/bin/bash
 # test-funcional.sh
 URL="${URL:-http://localhost:3001}"
-ESPERADA="${VERSION_ESPERADA:-1.0.0}"
+ESPERADA="${VERSION_ESPERADA:-1.3.0}"
 
 CODIGO=$(curl -s -o /tmp/resp.json -w '%{http_code}' "$URL/version")
 if [ "$CODIGO" != "200" ]; then
@@ -89,7 +89,7 @@ fi
 ```
 
 - `-w '%{http_code}'` comprueba también el código HTTP.
-- El  `*` del grep tolera JSON con espacio tras los dos puntos; el original fallaba con `"version": "1.0.0"`.
+- El  `*` del grep tolera JSON con espacio tras los dos puntos; el original fallaba con `"version": "1.3.0"`.
 - Las variables de entorno permiten reutilizar el script en Jenkins.
 - Alternativa más robusta si hay `jq`: `jq -r .version /tmp/resp.json`.
 
