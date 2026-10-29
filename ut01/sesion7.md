@@ -10,7 +10,7 @@ Un resultado que no se guarda solo dice si algo pasa hoy. Un resultado guardado 
 
 ### Qué hay que guardar además de la salida
 
-Una salida sin contexto no se puede comparar. Junto a la salida se guarda la versión, el commit, la fecha, la máquina y los parámetros de la prueba (`-n`, `-c`, URL). Se fija una convención de nombres: `tipo-version.txt`, por ejemplo `carga-v1.1.0.txt`.
+Una salida sin contexto no se puede comparar. Junto a la salida se guarda la versión, el commit, la fecha, la máquina y los parámetros de la prueba (`-n`, `-c`, URL). Se fija una convención de nombres: `tipo-version.txt`, por ejemplo `carga-v1.3.0.txt`.
 
 ### Cómo leer la salida de `ab`
 
@@ -47,7 +47,7 @@ Redirigir la salida sin más pierde stderr y no deja constancia del commit proba
 
 ```
 #!/usr/bin/env bash
-# Uso: ./guardar-resultados.sh v1.1.0
+# Uso: ./guardar-resultados.sh v1.3.0
 set -euo pipefail
 V=${1:?Uso: $0 <version>}
 URL=http://localhost:3001/
@@ -67,17 +67,17 @@ ab -n 200 -c 10 "$URL" > /dev/null 2>&1          # calentamiento, no se guarda
 
 Por el `set -e`, si el test funcional falla el script se detiene y no se hace la prueba de carga. Conviene comentarlo en clase: no tiene sentido medir el rendimiento de una versión rota.
 
-### Paso 2. Resultados de v1.0.0 y v1.1.0
+### Paso 2. Resultados de v1.2.2 y v1.3.0
 
-El entregable pide al menos dos versiones. Si no hay resultados guardados de v1.0.0, se generan ahora. Hay que medir v1.0.0 antes de hacer commit de los scripts, porque al cambiar a esa etiqueta desaparecerían del directorio de trabajo:
+El entregable pide al menos dos versiones. Si no hay resultados guardados de v1.2.2, se generan ahora. Hay que medir v1.2.2 antes de hacer commit de los scripts, porque al cambiar a esa etiqueta desaparecerían del directorio de trabajo:
 
 ```
-git switch --detach v1.0.0
+git switch --detach v1.2.2
 # arrancar la aplicación como en sesiones anteriores
-./guardar-resultados.sh v1.0.0
+./guardar-resultados.sh v1.2.2
 git switch main
 # volver a arrancar la aplicación con la versión actual
-./guardar-resultados.sh v1.1.0
+./guardar-resultados.sh v1.3.0
 ```
 
 ### Paso 3. Script de comparación
@@ -86,7 +86,7 @@ Este paso es el núcleo de RA1.f. `comparar-carga.sh` muestra una tabla con las 
 
 ```
 #!/usr/bin/env bash
-# Uso: ./comparar-carga.sh test-results/carga-v1.0.0.txt test-results/carga-v1.1.0.txt [umbral_%]
+# Uso: ./comparar-carga.sh test-results/carga-v1.2.2.txt test-results/carga-v1.3.0.txt [umbral_%]
 set -euo pipefail
 ANT=$1; NUE=$2; UMBRAL=${3:-10}
 
@@ -119,7 +119,7 @@ Reto para quien acabe antes: usar umbrales distintos para latencia y rendimiento
 
 ```
 git add guardar-resultados.sh comparar-carga.sh test-results/
-git commit -m "chore(test-results): resultados de v1.0.0 y v1.1.0 y script de comparación"
+git commit -m "chore(test-results): resultados de v1.2.2 y v1.3.0 y script de comparación"
 ```
 
 En Conventional Commits, el tipo `test:` se reserva para añadir o modificar pruebas; para guardar resultados encaja mejor `chore:`. Si en sesiones anteriores se usó `test:`, basta con mantener un criterio coherente.
@@ -146,18 +146,18 @@ Escribe una frase: "Mi versión es / no es apta porque…", con al menos una cif
 
 ## 4. Entregable y evaluación
 
-El entregable es la carpeta `test-results/` versionada en Git con resultados de al menos dos versiones, los dos scripts y un fichero `test-results/DECISION-v1.1.0.md`. Ese fichero contiene la tabla que genera `comparar-carga.sh` y la decisión justificada en 3-5 líneas; es lo que demuestra que se ha comparado, no solo guardado.
+El entregable es la carpeta `test-results/` versionada en Git con resultados de al menos dos versiones, los dos scripts y un fichero `test-results/DECISION-v1.3.0.md`. Ese fichero contiene la tabla que genera `comparar-carga.sh` y la decisión justificada en 3-5 líneas; es lo que demuestra que se ha comparado, no solo guardado.
 
 | Indicador (RA1.f)                                           | Evidencia                                             |
 |-------------------------------------------------------------|-------------------------------------------------------|
 | Guarda los resultados con convención de nombres y metadatos | `test-results/*.txt` con cabecera de versión y commit |
 | Conserva resultados de al menos dos versiones en Git        | `git log -- test-results/`                            |
 | Compara las métricas relevantes de forma reproducible       | `comparar-carga.sh` funcionando                       |
-| Toma una decisión de versionado justificada con datos       | `DECISION-v1.1.0.md`                                  |
+| Toma una decisión de versionado justificada con datos       | `DECISION-v1.3.0.md`                                  |
 
 ## Anexo: versión con regresión intencionada
 
-Si v1.0.0 y v1.1.0 rinden casi igual, el script dirá APTA y la discusión tendrá poco recorrido. Para que haya algo que detectar, se crea una versión v1.1.1 que hace la aplicación más lenta a propósito.
+Si v1.2.2 y v1.3.0 rinden casi igual, el script dirá APTA y la discusión tendrá poco recorrido. Para que haya algo que detectar, se crea una versión v1.3.1 que hace la aplicación más lenta a propósito.
 
 El cambio se añade al principio del manejador de la ruta `/` de la aplicación:
 
@@ -172,13 +172,13 @@ Como tienes tu propio laboratorio, crea la versión en tu repositorio:
 git switch -c regresion
 # añadir las dos líneas anteriores en la ruta /
 git commit -am "feat: cambio en la ruta principal"
-git tag v1.1.1
+git tag v1.3.1
 # arrancar la aplicación con este código
-./guardar-resultados.sh v1.1.1
-./comparar-carga.sh test-results/carga-v1.1.0.txt test-results/carga-v1.1.1.txt
+./guardar-resultados.sh v1.3.1
+./comparar-carga.sh test-results/carga-v1.3.0.txt test-results/carga-v1.3.1.txt
 ```
 
-El resultado esperado es NO APTA. Después se pide localizar la causa con `git diff v1.1.0 v1.1.1` y volver a `main` con `git switch main`. Para que el efecto sorprenda más, puedes repartir el cambio como fichero `.patch` (se aplica con `git apply`) sin decir qué contiene.
+El resultado esperado es NO APTA. Después se pide localizar la causa con `git diff v1.3.0 v1.3.1` y volver a `main` con `git switch main`. Para que el efecto sorprenda más, puedes repartir el cambio como fichero `.patch` (se aplica con `git apply`) sin decir qué contiene.
 
 ---
 
