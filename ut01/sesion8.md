@@ -16,7 +16,7 @@ Objetivos:
 
 Requisitos en tu ordenador:
 
-- Imagen `modulo5168-app:v1.1.0` construida en sesiones anteriores.
+- Imagen `modulo5168-app:v1.3.0` construida en la sesión 5 y etiqueta `v1.3.0` en Git.
 - Gitea en `localhost:3000` con el apartado Packages activo y `ROOT_URL = http://localhost:3000/` en `app.ini`.
 - Jenkins en contenedor con el socket de Docker montado y un pipeline multibranch sobre el repositorio de la app (imagen jenkins-lab de la guía de instalación, que ya incluye el cliente de Docker).
 - Plugin *Basic Branch Build Strategies* instalado en Jenkins (Manage Jenkins \> Plugins \> Available plugins). El Pipeline normal no sirve: hace falta un Job Multibranch Pipeline.
@@ -74,16 +74,17 @@ Se hace primero el ciclo a mano y después se automatiza. Los ejemplos usan el u
 
 Token en Gitea: *Configuración → Aplicaciones → Generar token*, con permiso de escritura sobre **package**.
 
+Publicamos la última versión apta, `v1.3.0`. Su etiqueta de Git ya existe desde la sesión 5, así que no se crea otra; solo se comprueba que está en Gitea:
+
 ```
-git tag -a v1.1.0 -m "Versión 1.1.0"
-git push origin v1.1.0
+git push origin v1.3.0             # si ya estaba subida, Git responde "Everything up-to-date"
 
-docker tag modulo5168-app:v1.1.0 localhost:3000/alumno/modulo5168-app:1.1.0
+docker tag modulo5168-app:v1.3.0 localhost:3000/alumno/modulo5168-app:1.3.0
 docker login localhost:3000        # usuario de Gitea + token
-docker push localhost:3000/alumno/modulo5168-app:1.1.0
+docker push localhost:3000/alumno/modulo5168-app:1.3.0
 
-docker rmi localhost:3000/alumno/modulo5168-app:1.1.0
-docker pull localhost:3000/alumno/modulo5168-app:1.1.0
+docker rmi localhost:3000/alumno/modulo5168-app:1.3.0
+docker pull localhost:3000/alumno/modulo5168-app:1.3.0
 ```
 
 Anotad el digest que muestra el push: debe coincidir con el del pull.
@@ -103,24 +104,24 @@ Si el job usa una fuente Git normal (no la de Gitea), el webhook no dispara el e
 
 ### Paso 3 · Publicación automática
 
-Copiar el stage *Publicar versión* del Jenkinsfile (apartado siguiente) al repositorio. Hacer un cambio pequeño, decidir si es PARCHE o MENOR y empujar el tag:
+Copiar el stage *Publicar versión* del Jenkinsfile (apartado siguiente) al repositorio. Hacer un cambio pequeño, decidir si es PARCHE o MENOR y empujar el tag. Para un parche, la versión es `v1.3.2` y no `v1.3.1`: ese número lo usó la versión NO APTA de la sesión 7, y un número de versión no se reutiliza aunque nunca se publicara.
 
 ```
-git tag -a v1.1.1 -m "Corrige ..."
-git push origin v1.1.1
+git tag -a v1.3.2 -m "Corrige ..."
+git push origin v1.3.2
 ```
 
-Resultado esperado: en Jenkins aparece un build bajo la pestaña *Tags* con el stage en verde. En Gitea Packages se ven `1.1.1`, `1.1`, `1` y `latest` con el nuevo digest, y `1.1.0` sigue intacto.
+Resultado esperado: en Jenkins aparece un build bajo la pestaña *Tags* con el stage en verde. En Gitea Packages se ven `1.3.2`, `1.3`, `1` y `latest` con el nuevo digest, y `1.3.0` sigue intacto.
 
 ### Paso 4 · Errores provocados
 
 | Prueba             | Qué hacer                                            | Resultado esperado                                        |
 |--------------------|------------------------------------------------------|-----------------------------------------------------------|
-| Pre-release        | Empujar `v1.2.0-rc.1`                                | Se publica solo `1.2.0-rc.1`; `latest` no se mueve        |
-| Reescribir versión | Borrar el tag `v1.1.1` y empujarlo sobre otro commit | El stage falla: la versión ya existe                      |
+| Pre-release        | Empujar `v1.4.0-rc.1`                                | Se publica solo `1.4.0-rc.1`; `latest` no se mueve        |
+| Reescribir versión | Borrar el tag `v1.3.2` y empujarlo sobre otro commit | El stage falla: la versión ya existe                      |
 | Tag no SemVer      | Empujar `version-2`                                  | El build se ejecuta pero el stage de publicación se salta |
 
-Para borrar y reescribir un tag: `git tag -d v1.1.1 && git push origin :refs/tags/v1.1.1`, nuevo commit, `git tag -a v1.1.1 -m "..." && git push origin v1.1.1`.
+Para borrar y reescribir un tag: `git tag -d v1.3.2 && git push origin :refs/tags/v1.3.2`, nuevo commit, `git tag -a v1.3.2 -m "..." && git push origin v1.3.2`.
 
 ### Paso 5 · Margen
 
@@ -130,8 +131,8 @@ Para quien se atasque con webhooks o credenciales. El registry temporal usa el p
 
 ```
 docker run -d -p 5001:5000 --name registry-temp registry:2
-docker tag modulo5168-app:v1.1.0 localhost:5001/modulo5168-app:1.1.0
-docker push localhost:5001/modulo5168-app:1.1.0
+docker tag modulo5168-app:v1.3.0 localhost:5001/modulo5168-app:1.3.0
+docker push localhost:5001/modulo5168-app:1.3.0
 curl http://localhost:5001/v2/modulo5168-app/tags/list
 ```
 
@@ -221,8 +222,8 @@ pipeline {
 
 ## Cierre
 
-- **Puesta en común.** ¿Quién eligió PARCHE y quién MENOR? ¿Estaba bien elegido? ¿Qué habría pasado si el pipeline hubiera dejado reescribir `1.1.1`?
-- **Debate.** Si después de publicar `1.2.0` alguien publica un parche de mantenimiento `1.1.2`, con este Jenkinsfile `latest` y `1` retroceden a `1.1.2`. La solución real compara con la versión más alta publicada antes de mover etiquetas. Reto opcional para quien acabe antes.
+- **Puesta en común.** ¿Quién eligió PARCHE y quién MENOR? ¿Estaba bien elegido? ¿Qué habría pasado si el pipeline hubiera dejado reescribir `1.3.2`?
+- **Debate.** Si después de publicar `1.4.0` alguien publica un parche de mantenimiento `1.3.3`, con este Jenkinsfile `latest` y `1` retroceden a `1.3.3`. La solución real compara con la versión más alta publicada antes de mover etiquetas. Reto opcional para quien acabe antes.
 - **Entrega** en Aules.
 
 ### Notas:
@@ -236,10 +237,10 @@ pipeline {
 
 Sube a Aules cuatro capturas y una justificación:
 
-1. Gitea Packages con `modulo5168-app` y sus etiquetas (`1.1.0`, `1.1.1`, `1.1`, `1`, `latest`).
+1. Gitea Packages con `modulo5168-app` y sus etiquetas (`1.3.0`, `1.3.2`, `1.3`, `1`, `latest`).
 2. Jenkins con el build del tag y el stage *Publicar versión* en verde.
 3. El build fallido al intentar reescribir una versión ya publicada.
-4. El tag de Git en Gitea (`v1.1.0` y la versión nueva).
+4. El tag de Git en Gitea (`v1.3.0` y la versión nueva).
 5. Una línea que justifique el número elegido para la segunda versión.
 
 | Criterio                                        | Puntos |
