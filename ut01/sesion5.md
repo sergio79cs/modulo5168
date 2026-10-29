@@ -13,22 +13,22 @@ En este módulo, el paquete es el conjunto de artefactos necesarios para poner u
 
 | **Componente**                                  | **Dónde vive**           | **Para qué sirve**                                           |
 |-------------------------------------------------|--------------------------|--------------------------------------------------------------|
-| Imagen nueva (`v1.1.0`)                         | Registry                 | El software que se despliega                                 |
+| Imagen nueva (`v1.3.0`)                         | Registry                 | El software que se despliega                                 |
 | Imagen anterior (`previous` + su tag semántico) | Registry                 | Comparar comportamiento y revertir                           |
 | `install.sh`                                    | Repositorio (`scripts/`) | Poner en marcha la versión de forma automática y verificable |
 | `migrate-data.sh`                               | Repositorio (`scripts/`) | Adaptar datos y configuración existentes al formato nuevo    |
 | `VERSION` / `CHANGELOG.md`                      | Repositorio              | Saber qué se despliega y qué cambia                          |
 
-"Si mañana la v1.1.0 falla en producción, ¿qué necesitáis tener a mano para volver a la v1.0.0 en cinco minutos?" Las respuestas suelen justificar solas la existencia de cada componente.
+"Si mañana la v1.3.0 falla en producción, ¿qué necesitáis tener a mano para volver a la v1.2.2 en cinco minutos?" Las respuestas suelen justificar solas la existencia de cada componente.
 
 ### La versión anterior y las etiquetas
 
 Conviene distinguir dos tipos de etiqueta:
 
-- **Etiquetas inmutables** (`v1.0.0`, `v1.1.0`): identifican una versión concreta y nunca deberían reasignarse. Son la referencia fiable para revertir.
+- **Etiquetas inmutables** (`v1.2.2`, `v1.3.0`): identifican una versión concreta y nunca deberían reasignarse. Son la referencia fiable para revertir.
 - **Etiquetas móviles** (`latest`, `previous`, `stable`): apuntan a distintas versiones con el tiempo. Resultan cómodas para los scripts, pero no sirven como registro histórico.
 
-Por eso `previous` es un alias de conveniencia. La garantía real de poder revertir es que `v1.0.0` siga existiendo en el registry. Hay que remarcar un error frecuente: `docker tag` solo actúa en local. Si la etiqueta no se sube con `docker push`, en el registry no existe.
+Por eso `previous` es un alias de conveniencia. La garantía real de poder revertir es que `v1.2.2` siga existiendo en el registry. Hay que remarcar un error frecuente: `docker tag` solo actúa en local. Si la etiqueta no se sube con `docker push`, en el registry no existe.
 
 ### El script de instalación
 
@@ -54,7 +54,7 @@ Hay una pregunta clave para cerrar la teoría: si revertimos la imagen a `previo
 
 ## 7.2 Práctica
 
-En el laboratorio simulamos el cambio de formato con un fichero de configuración. En la v1.1.0, la clave `DB_HOST` pasa a llamarse `DATABASE_HOST` y se añade `LOG_LEVEL`.
+En el laboratorio simulamos el cambio de formato con un fichero de configuración. En la v1.3.0, la clave `DB_HOST` pasa a llamarse `DATABASE_HOST` y se añade `LOG_LEVEL`.
 
 ### Paso 0 — Registry local
 
@@ -80,7 +80,7 @@ No arranques un registry:2 en el 5000 si ya existe el del laboratorio: el puerto
 ```
 modulo5168-app/
 ├── Dockerfile
-├── VERSION                  # contiene: v1.1.0
+├── VERSION                  # contiene: v1.3.0
 ├── CHANGELOG.md
 ├── config/
 │   └── app.conf.example     # plantilla en formato de la versión actual
@@ -105,7 +105,7 @@ EOF
 ```
 #!/usr/bin/env bash
 # install.sh — instala o actualiza modulo5168-app a la versión indicada
-# Uso: ./scripts/install.sh <version>     (ej.: ./scripts/install.sh v1.1.0)
+# Uso: ./scripts/install.sh <version>     (ej.: ./scripts/install.sh v1.3.0)
 set -euo pipefail
 ```
 
@@ -114,7 +114,7 @@ VERSION="${1:?Uso: $0 <version>}"
 REGISTRY="${REGISTRY:-localhost:5000}"
 IMAGEN="${REGISTRY}/modulo5168-app:${VERSION}"
 CONTENEDOR="modulo5168-app"
-PUERTO="${PUERTO:-8080}"
+PUERTO="${PUERTO:-3004}"
 DIR_DATOS="${DIR_DATOS:-$HOME/modulo5168/data}"
 ```
 
@@ -147,7 +147,7 @@ docker rm -f "$CONTENEDOR" >/dev/null 2>&1 || true
 
 ```
 docker run -d --name "$CONTENEDOR" \
-  -p "${PUERTO}:8080" \
+  -p "${PUERTO}:3000" \
   -v "$DIR_DATOS:/app/data" \
   --restart unless-stopped \
   "$IMAGEN"
@@ -166,7 +166,7 @@ echo "ERROR: la aplicación no responde tras la instalación"
 exit 1
 ```
 
-> *Hay que adaptar el puerto interno (*`8080`*) y la ruta de datos (*`/app/data`*) a lo que use la aplicación del módulo.*
+> *La app escucha en el puerto 3000 dentro del contenedor; en el equipo se publica en el 3004 para no chocar con Gitea (3000), los contenedores de prueba (3001-3003) ni Jenkins (8080). La carpeta* `/app/data` *y* `app.conf` *simulan los datos de producción: la app de ejemplo no los lee, pero el volumen permite comprobar que sobreviven al cambio de contenedor.*
 
 ### Paso 3 — migrate-data.sh
 
@@ -234,25 +234,38 @@ REG="${REG:-localhost:5000}"
 ```
 
 ```
-# 1. La versión actual pasa a ser 'previous' (en local y en el registry)
-docker pull $REG/modulo5168-app:v1.0.0
-docker tag  $REG/modulo5168-app:v1.0.0 $REG/modulo5168-app:previous
+# 1. Publicar la versión actual (v1.2.2, de la sesión 4) y marcarla como 'previous'
+docker tag  modulo5168-app:v1.2.2 $REG/modulo5168-app:v1.2.2
+docker push $REG/modulo5168-app:v1.2.2
+docker tag  $REG/modulo5168-app:v1.2.2 $REG/modulo5168-app:previous
 docker push $REG/modulo5168-app:previous
 ```
 
+Si no tenéis la imagen `modulo5168-app:v1.2.2` en local, reconstruidla desde su etiqueta: `git switch --detach v1.2.2`, `docker build -t modulo5168-app:v1.2.2 .` y `git switch main`.
+
+Antes de construir la nueva, subid la versión a `1.3.0` en `package.json` y en la línea `ENV APP_VERSION` del `Dockerfile`.
+
 ```
 # 2. Construir y publicar la nueva
-docker build -t $REG/modulo5168-app:v1.1.0 .
-docker push $REG/modulo5168-app:v1.1.0
+docker build -t $REG/modulo5168-app:v1.3.0 .
+docker push $REG/modulo5168-app:v1.3.0
 ```
 
 ```
-# 3. Comprobar
+# 3. Etiquetar la versión en Git
+git add .
+git commit -m "feat: paquete de despliegue con instalación y migración (v1.3.0)"
+git tag -a v1.3.0 -m "Versión 1.3.0: nuevo formato de configuración"
+git push origin main --tags
+```
+
+```
+# 4. Comprobar
 docker images | grep modulo5168-app
 curl -s http://$REG/v2/modulo5168-app/tags/list
 ```
 
-La última orden debería devolver algo como `{"name":"modulo5168-app","tags":["v1.0.0","previous","v1.1.0"]}`.
+La última orden debería devolver algo como `{"name":"modulo5168-app","tags":["v1.2.2","previous","v1.3.0"]}`.
 
 ### Paso 5 — Ensayo completo: actualizar y revertir
 
@@ -261,20 +274,20 @@ chmod +x scripts/*.sh
 ```
 
 ```
-# Estado de partida: v1.0.0 funcionando con configuración v1
-./scripts/install.sh v1.0.0
+# Estado de partida: v1.2.2 funcionando con configuración v1
+./scripts/install.sh v1.2.2
 ```
 
 ```
 # Actualización: primero datos, luego imagen
-./scripts/migrate-data.sh v1.1.0
-./scripts/install.sh v1.1.0
+./scripts/migrate-data.sh v1.3.0
+./scripts/install.sh v1.3.0
 cat ~/modulo5168/data/app.conf        # comprobar formato 2
 ```
 
 ```
 # Idempotencia: repetir no debe romper nada
-./scripts/migrate-data.sh v1.1.0
+./scripts/migrate-data.sh v1.3.0
 ```
 
 ```
@@ -288,7 +301,7 @@ Anota qué pasaría si revirtieras la imagen sin restaurar el backup. Enlaza con
 ### Ampliación (para quien termine antes)
 
 - **\`rollback.sh\`:** automatiza la reversión (instalar `previous` y restaurar el backup más reciente).
-- **Manifiesto del paquete:** generar un `release-v1.1.0.tar.gz` con los scripts, `VERSION`, `CHANGELOG.md` y un `MANIFEST.txt` que liste las imágenes y sus digests (`docker inspect --format '{{index .RepoDigests 0}}'`).
+- **Manifiesto del paquete:** generar un `release-v1.3.0.tar.gz` con los scripts, `VERSION`, `CHANGELOG.md` y un `MANIFEST.txt` que liste las imágenes y sus digests (`docker inspect --format '{{index .RepoDigests 0}}'`).
 - **Instalación sin registry:** `docker save` de ambas imágenes dentro del paquete, para entornos sin acceso a red.
 
 ## 7.3 Revisión
@@ -296,7 +309,7 @@ Anota qué pasaría si revirtieras la imagen sin restaurar el backup. Enlaza con
 **Puesta en común:** algunas personas muestran su ensayo completo y el resto lo contrasta con estas preguntas:
 
 - ¿Qué pasa si ejecutáis `install.sh` sin argumento? ¿Y dos veces seguidas?
-- ¿Dónde está la garantía real de poder volver a la v1.0.0: en `previous` o en `v1.0.0`?
+- ¿Dónde está la garantía real de poder volver a la v1.2.2: en `previous` o en `v1.2.2`?
 - ¿Por qué la migración hace backup si "solo" cambia un fichero de texto?
 - En la próxima UT, ¿qué etapas del pipeline de Jenkins llamarían a cada script?
 
@@ -305,7 +318,7 @@ Anota qué pasaría si revirtieras la imagen sin restaurar el backup. Enlaza con
 - Scripts escritos en Windows con saltos de línea CRLF: aparece el error `bad interpreter`. Se soluciona con `sed -i 's/\r$//' scripts/*.sh`.
 - Olvidar `chmod +x`, o no hacer `git add --chmod=+x` al subirlos a Gitea.
 - Hacer `docker tag ... previous` sin `docker push`: la etiqueta no existe en el registry.
-- Publicar la v1.1.0 antes de etiquetar `previous`, o sobrescribir `v1.0.0` al reconstruir.
+- Publicar la v1.3.0 antes de etiquetar `previous`, o sobrescribir `v1.2.2` al reconstruir.
 
 ## Entregable y evaluación (RA1.d)
 
