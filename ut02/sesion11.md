@@ -1,4 +1,4 @@
-[← Sesión 10](sesion10.md) · [Índice de la UT02](./)
+[← Sesión 10](sesion10.md) · [Índice de la UT02](./) · [Sesión 12 →](sesion12.md)
 
 # Módulo 5168 Definición de flujos de procesos de despliegue continuo · Sesión 11 — Destrucción de objetos intermedios
 
@@ -811,4 +811,4 @@ Las capturas se suben a la tarea de la sesión en Aules.
 
 ---
 
-[← Sesión 10](sesion10.md) · [Índice de la UT02](./)
+[← Sesión 10](sesion10.md) · [Índice de la UT02](./) · [Sesión 12 →](sesion12.md)
