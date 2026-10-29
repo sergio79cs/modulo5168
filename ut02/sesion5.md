@@ -7,14 +7,7 @@
 
 **Entorno de trabajo.** Como en el resto del módulo, todo se hace en local, en el equipo del laboratorio de cada alumno. Hoy se usan tres piezas que ya están instaladas: **Ansible** (en el entorno virtual `~/venv-ansible`), **kubectl** y el clúster **Minikube**. El trabajo se hace en `~/modulo5168-lab/lab/ansible/`, dentro del proyecto del laboratorio. Hoy no hace falta Jenkins ni Gitea.
 
-**Reparto del tiempo (2 h).** La sesión es práctica a partes iguales: primero se explica el modelo completo y después el alumnado lo practica con sus propias manos. No hay demostración larga del docente; la estructura del laboratorio se descubre en la parte B, leyendo y ejecutando cada fichero.
-
-| Bloque | Duración | Qué se hace |
-|---|---|---|
-| 7.1 Teoría | 55' | Explicación en 10 apartados, con la comprobación rápida al final |
-| 7.2 Práctica, parte A | 20' | Primer playbook propio e idempotencia |
-| 7.2 Práctica, parte B | 35' | El laboratorio real: una plantilla, dos entornos, ConfigMap en Minikube |
-| 7.3 Cierre | 10' | Puesta en común y preguntas para pensar |
+**Cómo se organiza.** La sesión es práctica a partes iguales: primero se explica el modelo completo y después el alumnado lo practica con sus propias manos. No hay demostración larga del docente; la estructura del laboratorio se descubre en la parte B, leyendo y ejecutando cada fichero.
 
 ### Preparación previa: comprobar el entorno
 
@@ -373,7 +366,7 @@ Preguntas para hacer en voz alta antes de pasar a la práctica:
 
 ## 7.2 Práctica
 
-### Parte A — Tu primer playbook (20')
+### Parte A — Tu primer playbook
 
 **Objetivo:** escribir un playbook propio desde cero, ejecutarlo y comprobar con tus propios ojos qué es la idempotencia, antes de pasar al laboratorio real. Esta parte se hace en una carpeta aparte, para no tocar los ficheros del laboratorio.
 
@@ -531,7 +524,7 @@ Ejecútalo **dos veces** y observa el estado de cada tarea. La primera sale siem
 
 **Entregable de la parte A:** captura del segundo `PLAY RECAP` de `hola.yml` con `changed=0`.
 
-### Parte B — El laboratorio real: una plantilla, dos entornos (35')
+### Parte B — El laboratorio real: una plantilla, dos entornos
 
 **Objetivo:** usar el playbook del laboratorio para configurar *staging* y *producción* en el clúster Minikube, partiendo siempre de la misma plantilla, y comprobar cada resultado desde fuera de Ansible, con `kubectl`.
 

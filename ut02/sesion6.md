@@ -5,13 +5,6 @@
 
 *Criterio RA2.b*
 
-| Bloque | Duración |
-|---|---|
-| Teoría (recordatorio + conceptos) | 40' |
-| Práctica guiada | 100' |
-| Cierre y entrega | 30' |
-| Margen / descanso | 10' |
-
 ## Objetivos de aprendizaje
 
 Al acabar la sesión, serás capaz de:
@@ -28,7 +21,7 @@ Laboratorio arrancado: `kubectl get nodes` muestra el nodo de Minikube en `Ready
 
 ## 1. Teoría
 
-### Bloque 1 — Recordatorio de la sesión 5 (10')
+### Bloque 1 — Recordatorio de la sesión 5
 
 En la sesión anterior montamos las cuatro piezas con las que trabaja Ansible en nuestro laboratorio. Hoy las usamos para algo concreto, así que conviene tenerlas claras:
 
@@ -41,13 +34,13 @@ En la sesión anterior montamos las cuatro piezas con las que trabaja Ansible en
 
 Y una idea que hoy vamos a comprobar con datos: **idempotencia** significa que ejecutar el mismo playbook varias veces con las mismas entradas deja el sistema igual que tras la primera vez. En el resumen final (`PLAY RECAP`) se ve como `changed=0`.
 
-Preguntas rápidas para arrancar (respuesta oral, 2 minutos):
+Preguntas rápidas para arrancar (respuesta oral):
 
 1. ¿Qué diferencia hay entre el inventario y el playbook?
 2. ¿Qué dos cosas necesita Ansible para generar un fichero a partir de una plantilla?
 3. Si ejecuto el playbook dos veces seguidas sin cambiar nada, ¿qué debería decir `changed`?
 
-### Bloque 2 — Qué es un parámetro de entorno (10')
+### Bloque 2 — Qué es un parámetro de entorno
 
 Una misma aplicación se despliega en sitios distintos: el entorno de **pruebas previas** (*staging*), donde se comprueba que todo funciona antes de publicar, y el de **producción**, donde la usa el público. El código y la imagen son **idénticos**; lo que cambia es la configuración que los rodea. A cada dato de esa configuración que varía de un entorno a otro lo llamamos **parámetro de entorno**.
 
@@ -77,7 +70,7 @@ Hay tres formas de gestionar esto, y solo una escala:
 
 Este principio se conoce como *separar la configuración del código*, y aparece en cualquier metodología moderna de despliegue (por ejemplo, el manifiesto «The Twelve-Factor App»).
 
-### Bloque 3 — «Recopilar» los parámetros (10')
+### Bloque 3 — «Recopilar» los parámetros
 
 La consigna dice que los parámetros se obtienen *durante la creación de la infraestructura*. Qué significa «recopilar»: antes de crear el ConfigMap, Ansible **reúne** los valores desde varias fuentes y los consolida en un único resultado.
 
@@ -110,7 +103,7 @@ Por eso `app_version=1.0.0` en la terminal sustituye al `"dev"` por defecto, y p
 
 > **Nota sobre «durante la creación de la infraestructura».** En una empresa, parte de esos valores nacerían al crear la infraestructura (por ejemplo, la dirección de una base de datos que se acaba de crear, que otra herramienta entregaría a Ansible). En nuestro laboratorio no creamos infraestructura nueva: los valores se derivan de los ficheros de cada entorno en el momento de preparar el despliegue. El mecanismo es el mismo: **nadie los teclea a mano en cada despliegue**.
 
-### Bloque 4 — Del ConfigMap a la aplicación (10')
+### Bloque 4 — Del ConfigMap a la aplicación
 
 Ansible genera un **ConfigMap**, el objeto de Kubernetes pensado para guardar configuración no secreta como pares clave–valor. Mira cómo queda la plantilla:
 
@@ -141,7 +134,7 @@ Resumen del bloque en una frase: **vars → plantilla → ConfigMap → aplicaci
 
 Ejecutarás el mismo playbook contra dos entornos y demostrarás con datos qué cambia. Trabaja siempre desde `lab/ansible`.
 
-### Paso 0 · Comprobar el laboratorio (5')
+### Paso 0 · Comprobar el laboratorio
 
 ```
 cd lab/ansible
@@ -151,7 +144,7 @@ kubectl get nodes
 
 `kubectl` debe mostrar el nodo en estado `Ready`. Si responde `connection refused`, el clúster no está arrancado: `minikube start`.
 
-### Paso 1 · Leer las piezas antes de ejecutar (15')
+### Paso 1 · Leer las piezas antes de ejecutar
 
 ```
 cat vars/staging.yml
@@ -168,7 +161,7 @@ Responde en tu cuaderno **antes** de ejecutar nada:
 
 Mira en el playbook la línea `vars_files` y comprueba que la ruta incluye `{{ target_env }}`. Eso es lo que hace que un único playbook sirva para todos los entornos.
 
-### Paso 2 · Validar la sintaxis (3')
+### Paso 2 · Validar la sintaxis
 
 ```
 ansible-playbook -i inventory.ini playbook.yml --syntax-check -e "target_env=staging app_version=1.0.0"
@@ -176,7 +169,7 @@ ansible-playbook -i inventory.ini playbook.yml --syntax-check -e "target_env=sta
 
 Esperado: `playbook: playbook.yml`. Comprueba la sintaxis, no el contenido de las variables.
 
-### Paso 3 · Recopilar y aplicar para *staging* (10')
+### Paso 3 · Recopilar y aplicar para *staging*
 
 ```
 ansible-playbook -i inventory.ini playbook.yml -e "target_env=staging app_version=1.0.0"
@@ -205,7 +198,7 @@ localhost : ok=4  changed=3  unreachable=0  failed=0
 
 Fíjate en `created`: es la primera vez que existe el ConfigMap.
 
-### Paso 4 · Ver qué parámetros se han recopilado (10')
+### Paso 4 · Ver qué parámetros se han recopilado
 
 Primero el fichero que Ansible ha generado a partir de la plantilla:
 
@@ -251,7 +244,7 @@ kubectl get configmap modulo5168-config -o yaml > evidencia-staging.yaml
 kubectl get configmap modulo5168-config -o jsonpath='{.data}' | python3 -m json.tool > datos-staging.json
 ```
 
-### Paso 5 · Repetir para *production* (10')
+### Paso 5 · Repetir para *production*
 
 El **mismo playbook**, solo cambia el valor de `target_env`:
 
@@ -283,7 +276,7 @@ kubectl get configmap modulo5168-config -o jsonpath='{.data}' | python3 -m json.
 
 **📸 Captura 2:** el mismo comando con la salida de *production*.
 
-### Paso 6 · Comparar ambos entornos (15')
+### Paso 6 · Comparar ambos entornos
 
 ```
 diff datos-staging.json datos-production.json
@@ -315,7 +308,7 @@ Además cambia la etiqueta `entorno` del ConfigMap (`staging` → `production`),
 
 Pregunta de reflexión: `APP_VERSION` es igual en los dos y `TARGET_ENV` cambia. Ninguno de los dos viene de `vars/`, ¿por qué? ¿Qué ventaja tiene que sea Jenkins quien los pase con `-e`?
 
-### Paso 7 · Idempotencia: ejecutar dos veces lo mismo (7')
+### Paso 7 · Idempotencia: ejecutar dos veces lo mismo
 
 Lanza otra vez exactamente el mismo comando de *production*:
 
@@ -336,7 +329,7 @@ localhost : ok=4  changed=0  unreachable=0  failed=0
 
 `unchanged` y `changed=0`: el sistema ya estaba como se pedía. Esto funciona porque el playbook decide si «hubo cambio» mirando lo que responde `kubectl` (`changed_when: "'unchanged' not in resultado.stdout"`). Sin esa línea, Ansible marcaría `changed` siempre que se ejecuta un comando.
 
-### Paso 8 · Cambiar solo un parámetro (8')
+### Paso 8 · Cambiar solo un parámetro
 
 Cambia únicamente la versión:
 
@@ -354,7 +347,7 @@ kubectl get configmap modulo5168-config -o jsonpath='{.data.APP_VERSION}{"\n"}'
 
 Aparece `dev`: es el valor por defecto del playbook. Ahí ves la precedencia: sin `-e`, manda el valor por defecto.
 
-### Paso 9 · Vista previa antes de aplicar (7')
+### Paso 9 · Vista previa antes de aplicar
 
 Para comprobar qué cambiaría **sin tocar el clúster**:
 
@@ -364,7 +357,7 @@ ansible-playbook -i inventory.ini playbook.yml -e "target_env=staging app_versio
 
 Verás las líneas que cambiarían en el fichero generado (`LOG_LEVEL`, `REPLICAS`, `TARGET_ENV`...) y la tarea de `kubectl` aparece como `skipping`. Es el hábito recomendable antes de tocar producción. Limitación: las tareas `command` no se ejecutan en este modo, así que la simulación solo cubre la plantilla.
 
-### Paso 10 · Provocar fallos (5')
+### Paso 10 · Provocar fallos
 
 Mejor verlos ahora que en el pipeline:
 
@@ -375,7 +368,7 @@ ansible-playbook -i inventory.ini playbook.yml -e "target_env=preproduccion"
 
 El primero falla porque `target_env` no está definido; el segundo, porque no existe `vars/preproduccion.yml`. Según la versión de Ansible, el mensaje habla de variable no definida o de fichero no encontrado. En ambos casos el playbook se detiene **antes de aplicar nada en el clúster**.
 
-### Paso 11 · Reto: un tercer entorno sin tocar el playbook (10')
+### Paso 11 · Reto: un tercer entorno sin tocar el playbook
 
 Crea `vars/preproduccion.yml` con las **mismas claves** y valores que consideres razonables (por ejemplo `log_level: INFO` y `replicas: 2`) y ejecuta:
 
@@ -399,9 +392,9 @@ No has modificado ni el playbook ni la plantilla. Anota qué ficheros has tocado
 
 ## 3. Cierre
 
-**Puesta en común (15').** Cada equipo muestra su tabla del Paso 6 y su reto del Paso 11. Se comparan tres cosas: ¿coinciden todos los valores?, ¿qué entorno nuevo ha inventado cada uno y con qué valores?, ¿alguien ha tenido un fallo distinto a los de la tabla de errores?
+**Puesta en común.** Cada equipo muestra su tabla del Paso 6 y su reto del Paso 11. Se comparan tres cosas: ¿coinciden todos los valores?, ¿qué entorno nuevo ha inventado cada uno y con qué valores?, ¿alguien ha tenido un fallo distinto a los de la tabla de errores?
 
-**Preguntas de comprobación (10')**, en parejas, para responder por escrito:
+**Preguntas de comprobación**, en parejas, para responder por escrito:
 
 1. ¿Por qué `LOG_LEVEL` y `REPLICAS` están en `vars/` y `APP_VERSION` se pasa con `-e`?
 2. Si en `vars/production.yml` ponemos `replicas: 3`, ¿qué pasa con los pods ya en marcha? ¿Qué hay que hacer para que lo apliquen?

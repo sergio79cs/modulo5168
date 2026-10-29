@@ -44,21 +44,11 @@ Al terminar la sesión, el alumnado será capaz de:
 
 - Probar la sesión completa en una VM limpia: el tiempo real de la práctica depende de que el clúster responda con fluidez.
 
-## Teoría ampliada (30')
+## Teoría ampliada
 
 Idea clave para el alumnado: **el código de la aplicación no cambia entre entornos; cambian el destino y las credenciales para llegar a él**, y el pipeline debe elegirlos solo, sin que nadie edite el Jenkinsfile a mano.
 
-### Guión de tiempos
-
-| Minutos | Bloque                          | Qué se hace                                                       |
-|---------|---------------------------------|-------------------------------------------------------------------|
-| 0–5     | Qué es un entorno               | Pregunta inicial y ejemplo de un despliegue desastroso            |
-| 5–12    | Qué cambia entre entornos       | Tabla de parámetros y principio de configuración fuera del código |
-| 12–22   | Credenciales en Jenkins         | Tipos, ámbitos, ID y enlace al pipeline                           |
-| 22–28   | Elegir el entorno según la rama | Ejemplo del Jenkinsfile y variantes                               |
-| 28–30   | Cierre                          | Errores típicos y preguntas                                       |
-
-### 1. Qué es un entorno de despliegue (5')
+### 1. Qué es un entorno de despliegue
 
 Un entorno es un destino donde se ejecuta la aplicación con una configuración propia. Los más habituales son tres:
 
@@ -70,7 +60,7 @@ Un entorno es un destino donde se ejecuta la aplicación con una configuración 
 
 Pregunta para abrir debate: *¿qué pasaría si una rama de feature a medio hacer se desplegara en producción porque alguien se equivocó de contexto de kubectl?* De ahí sale la motivación: el pipeline, y no la persona, decide el destino.
 
-### 2. Qué cambia de un entorno a otro (7')
+### 2. Qué cambia de un entorno a otro
 
 | Elemento                      | Staging                                    | Production                                              |
 |-------------------------------|--------------------------------------------|---------------------------------------------------------|
@@ -88,7 +78,7 @@ Tres ideas que conviene dejar claras:
 
 3.  **Configuración fuera del código.** Ningún secreto vive en el repositorio ni en el Jenkinsfile: viven en Jenkins (o en un gestor de secretos) y el Jenkinsfile solo los referencia por su ID.
 
-### 3. Gestión de credenciales en Jenkins (10')
+### 3. Gestión de credenciales en Jenkins
 
 El **Credentials Store** de Jenkins guarda secretos cifrados. Se gestionan en *Manage Jenkins → Credentials*. Cada credencial tiene un **ID** (el nombre con el que el pipeline la referencia), una descripción y un ámbito.
 
@@ -130,7 +120,7 @@ Para elegir la credencial según el entorno se usa la forma 2, porque su credent
 
 - No activar set -x en scripts que manejan secretos.
 
-### 4. Elegir el entorno según la rama (6')
+### 4. Elegir el entorno según la rama
 
 En un job **Multibranch**, Jenkins crea un pipeline por cada rama y define BRANCH_NAME. Sobre esa variable se apoya la condición when { branch 'main' }.
 
@@ -180,7 +170,7 @@ environment {
 
 Ambas hacen lo mismo. La primera muestra con claridad el uso de when; la segunda concentra la decisión en una línea.
 
-### 5. Cierre y errores típicos (2')
+### 5. Cierre y errores típicos
 
 - Usar un job Pipeline normal en lugar de Multibranch: when { branch } nunca se cumple.
 
@@ -190,7 +180,7 @@ Ambas hacen lo mismo. La primera muestra con claridad el uso de when; la segunda
 
 - Escribir el secreto directamente en el Jenkinsfile "solo para probar" y subirlo a Gitea.
 
-## Práctica guiada (70')
+## Práctica guiada
 
 El alumnado termina con un solo Jenkinsfile que despliega en staging desde una rama de feature y en production desde main, cada vez con su propio kubeconfig.
 
@@ -203,7 +193,7 @@ El alumnado termina con un solo Jenkinsfile que despliega en staging desde una r
 | 50–65   | 4\. Probar en feature y en main             | Un despliegue en cada namespace                        |
 | 65–70   | 5\. Experimento de aislamiento              | Prueba de que la credencial protege producción         |
 
-### Paso 0 · Preparar los entornos en Kubernetes (10')
+### Paso 0 · Preparar los entornos en Kubernetes
 
 El profesor entrega el script prep-entornos.sh; el alumnado lo ejecuta y después comprueba qué ha creado. Genera, para cada entorno, un namespace, una cuenta de servicio jenkins-deployer con permisos únicamente sobre ese namespace y un fichero kubeconfig que usa el *token* de esa cuenta.
 
@@ -260,7 +250,7 @@ Si la segunda orden devuelve Forbidden, la separación de permisos funciona. Est
 
 > Plan B si Kubernetes da problemas de red o de certificados: usar el mismo kubeconfig de administrador copiado dos veces y distinguir los entornos solo por el namespace. La práctica de Jenkins funciona igual, pero se pierde el experimento de aislamiento del paso 5.
 
-### Paso 1 · Crear las credenciales en Jenkins (15')
+### Paso 1 · Crear las credenciales en Jenkins
 
 Hay que repetir el proceso dos veces, una por entorno:
 
@@ -278,7 +268,7 @@ Hay que repetir el proceso dos veces, una por entorno:
 
 Cuando estén creadas, borrar de la VM los dos ficheros kubeconfig o dejarlos fuera de cualquier repositorio: contienen tokens válidos. Jenkins ya guarda su propia copia cifrada.
 
-### Paso 2 · Preparar el repositorio (10')
+### Paso 2 · Preparar el repositorio
 
 En el repositorio de Gitea, rama main, comprobar que existe k8s/web.yaml. Si el alumnado no conserva uno de sesiones anteriores, sirve este:
 
@@ -322,7 +312,7 @@ git push -u origin feature/saludo
 
 En el job Multibranch de Jenkins, pulsar *Scan Repository Now* para que detecte las dos ramas (main y feature/saludo). Todavía no hay Jenkinsfile con esta lógica, así que no se ejecutará nada útil.
 
-### Paso 3 · Escribir el Jenkinsfile (15')
+### Paso 3 · Escribir el Jenkinsfile
 
 Partiendo del fragmento de la teoría, el alumnado completa el fichero. Además del entorno, el pipeline recoge un segundo parámetro propio de cada uno (número de réplicas), para que se vea que cambian *parámetros* y no solo el destino:
 
@@ -381,7 +371,7 @@ git commit -m "Pipeline con entornos staging y production"
 git push
 ```
 
-### Paso 4 · Probar en feature y en main (15')
+### Paso 4 · Probar en feature y en main
 
 **4a. Rama de feature (debe ir a staging).**
 
@@ -407,7 +397,7 @@ git push
 
 3.  Comprobar en Kubernetes: kubectl get deploy -n production muestra web con 2 réplicas.
 
-### Paso 5 · Experimento de aislamiento (5')
+### Paso 5 · Experimento de aislamiento
 
 Objetivo: demostrar que la credencial protege producción aunque el pipeline se equivoque.
 
