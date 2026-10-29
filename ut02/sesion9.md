@@ -2,7 +2,7 @@
 
 # Módulo 5168 Definición de flujos de procesos de despliegue continuo · Sesión 9 — Ejecución y comprobación del despliegue
 
-Martes 15 de diciembre de 2026. Criterio RA2.c (continuación).
+Criterio RA2.c (continuación).
 
 ## Contexto y objetivos
 

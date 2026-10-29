@@ -8,7 +8,6 @@ UT02, sesión 7 del módulo 5168: el mismo Jenkinsfile despliega en staging desd
 
 | Dato                   | Detalle                                                                                            |
 |------------------------|----------------------------------------------------------------------------------------------------|
-| Fecha y duración       | Jueves 3 de diciembre de 2026 · 2 h (30' teoría · 70' práctica · 20' de margen, descanso y repaso) |
 | Criterio de evaluación | RA2.b (continuación de la sesión anterior); redacción oficial según tu programación                |
 | Lugar y equipo         | Aula, VM de VirtualBox (.ova) de cada alumno con Docker, Gitea, Jenkins y Kubernetes               |
 | Entregable             | Capturas y Jenkinsfile en el repositorio de Gitea del alumno, más un breve cuestionario en Aules   |

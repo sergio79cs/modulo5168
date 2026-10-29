@@ -2,7 +2,7 @@
 
 # Módulo 5168 Definición de flujos de procesos de despliegue continuo · Sesión 8 — Verificación de parámetros en el despliegue
 
-Jueves 10 de diciembre de 2026. Criterio RA2.c.
+Criterio RA2.c.
 
 ## Contexto y objetivos
 

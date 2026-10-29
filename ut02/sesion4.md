@@ -6,7 +6,6 @@
 
 | Dato | Detalle |
 |---|---|
-| **Fecha** | Martes 24 de noviembre |
 | **Criterio** | RA2.a: el pipeline comprueba las condiciones necesarias antes de iniciar el despliegue |
 | **Herramienta** | Jenkins (pipeline declarativo). Los despliegues se simulan con `echo`; no hace falta infraestructura real |
 | **Entregable** | Captura del pipeline detenido por falta de un parámetro y captura de la ejecución correcta |

@@ -3,7 +3,7 @@
 
 # Módulo 5168 Definición de flujos de procesos de despliegue continuo · Sesión 12 — Práctica integradora y cierre
 
-Martes 12 de enero · Criterio RA2.a–d
+Criterio RA2.a–d
 
 **Módulo 5168 · Definición de flujos de procesos de despliegue continuo · UT2**
 

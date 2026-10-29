@@ -2,7 +2,7 @@
 
 # Módulo 5168 Definición de flujos de procesos de despliegue continuo · Sesión 10 — Manejo de errores: detener el pipeline
 
-Jueves 17 de diciembre · Criterio RA2.d (parte 1) · Última sesión antes de Navidad
+Criterio RA2.d (parte 1)
 
 Esta sesión es solo de teoría, con una demostración en pantalla que sigue el docente. No hay práctica individual: así no queda ningún ejercicio a medias durante las vacaciones.
 

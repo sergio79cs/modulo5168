@@ -2,7 +2,7 @@
 
 # Módulo 5168 Definición de flujos de procesos de despliegue continuo · Sesión 11 — Destrucción de objetos intermedios
 
-Jueves 7 de enero · Criterio RA2.d (parte 2, práctica) · Primera sesión tras las vacaciones de Navidad
+Criterio RA2.d (parte 2, práctica)
 
 En la sesión 10 aprendiste a detener un pipeline cuando una etapa falla y a recoger qué error se ha producido. Hoy das el paso siguiente: cuando el pipeline se detiene, **no puede dejar el clúster lleno de restos**. Esta sesión es práctica: provocarás un fallo intencionado en un despliegue de Kubernetes y harás que el pipeline deshaga lo que ya había creado.
 

@@ -3,7 +3,7 @@
 
 # Módulo 5168 Definición de flujos de procesos de despliegue continuo · Sesión 6 — Recopilación de parámetros por entorno
 
-*Martes 1 de diciembre · 3 horas · Criterio RA2.b*
+*Criterio RA2.b*
 
 | Bloque | Duración |
 |---|---|

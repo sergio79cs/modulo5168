@@ -6,7 +6,6 @@
 
 | Dato | Detalle |
 |---|---|
-| Fecha y duración | Jueves 19 de noviembre de 2026 · 2 horas |
 | Finalidad | Base para el criterio a |
 | Herramientas | Jenkins y Gitea, en Docker, en el ordenador de cada alumno |
 | Requisito previo | Laboratorio levantado (Jenkins y Gitea) y un Job de tipo Pipeline creado en sesiones anteriores |
