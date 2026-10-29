@@ -13,7 +13,7 @@ Al acabar la sesión, serás capaz de:
 
 ## Requisitos previos
 
-Docker instalado y funcionando en cada equipo (`docker version` responde con cliente y servidor), el repositorio del laboratorio clonado desde Gitea y la aplicación en la versión v1.1.0.
+Docker instalado y funcionando en cada equipo (`docker version` responde con cliente y servidor), el repositorio del laboratorio clonado desde Gitea y la aplicación en la versión v1.2.0.
 
 # 2. Teoría
 
@@ -59,7 +59,7 @@ Los cuatro conceptos se entienden mejor con una analogía de programación orien
 1. **Las capas se comparten.** Si diez imágenes parten de `node:24-alpine`, esa capa base se descarga y almacena una sola vez.
 2. **Los contenedores son efímeros.** Todo lo que se escribe dentro va a la capa de escritura y desaparece con `docker rm`. Los datos persistentes se guardan en volúmenes (se verá en Docker II).
 3. **Las capas son inmutables.** Borrar un fichero en una capa posterior no reduce el tamaño de la imagen, porque el fichero sigue existiendo en la capa anterior. Esto justificará más adelante las builds multietapa.
-4. **Etiquetas (tags).** `modulo5168-app:v1.1.0` enlaza con el versionado semántico de las sesiones anteriores. Evitad `latest` en despliegues, porque no dice qué versión se está ejecutando y rompe la trazabilidad del pipeline.
+4. **Etiquetas (tags).** `modulo5168-app:v1.2.0` enlaza con el versionado semántico de las sesiones anteriores. Evitad `latest` en despliegues, porque no dice qué versión se está ejecutando y rompe la trazabilidad del pipeline.
 
 ## Bloque 3 — Anatomía de un Dockerfile
 
@@ -133,7 +133,7 @@ Con `-p 3001:3000`, todo lo que llegue al puerto 3001 de tu ordenador se reenví
 Mira el punto final de este comando:
 
 ```
-docker build -t modulo5168-app:v1.1.0 .
+docker build -t modulo5168-app:v1.2.0 .
 ```
 
 Ese `.` significa «usa esta carpeta». Se llama **contexto de build**: es la carpeta cuyo contenido Docker recibe para construir la imagen. Piensa en ella como una caja de mudanza:
@@ -206,7 +206,7 @@ Comprobad que `lab/app` contiene estos ficheros. Si falta alguno, cread los que 
 ```
 {
   "name": "modulo5168-app",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
@@ -292,14 +292,14 @@ CMD ["node", "server.js"]
 Construcción y ejecución:
 
 ```
-docker build -t modulo5168-app:v1.1.0 .
+docker build -t modulo5168-app:v1.2.0 .
 docker images modulo5168-app
-docker run -d -p 3001:3000 --name test-app modulo5168-app:v1.1.0
+docker run -d -p 3001:3000 --name test-app modulo5168-app:v1.2.0
 docker ps
 curl http://localhost:3001/health
 ```
 
-La respuesta esperada es algo como `{"status":"ok","version":"1.1.0","uptime":3.21}`.
+La respuesta esperada es algo como `{"status":"ok","version":"1.2.0","uptime":3.21}`.
 
 **Aviso para Windows:** en PowerShell, `curl` es un alias de `Invoke-WebRequest`. Usad `curl.exe http://localhost:3001/health` o abrid la URL en el navegador.
 
@@ -359,10 +359,10 @@ Ejecutad cada comando y explicad con vuestras palabras qué muestra:
 
 ```
 # Capas de la imagen y tamaño de cada una
-docker history modulo5168-app:v1.1.0
+docker history modulo5168-app:v1.2.0
 
 # Metadatos completos (CMD, ENV, puertos, capas)
-docker image inspect modulo5168-app:v1.1.0
+docker image inspect modulo5168-app:v1.2.0
 
 # Salida de la aplicación
 docker logs test-app
@@ -416,12 +416,12 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
 CMD ["node", "server.js"]
 ```
 
-Subid la versión a `1.1.1` en `package.json` (es un cambio que no añade funcionalidad, así que es un *patch* según SemVer) y desplegad:
+Subid la versión a `1.2.1` en `package.json` (es un cambio que no añade funcionalidad, así que es un *patch* según SemVer) y desplegad:
 
 ```
-docker build -t modulo5168-app:v1.1.1 .
+docker build -t modulo5168-app:v1.2.1 .
 docker rm -f test-app
-docker run -d -p 3001:3000 --name test-app modulo5168-app:v1.1.1
+docker run -d -p 3001:3000 --name test-app modulo5168-app:v1.2.1
 docker ps          # esperad unos segundos: STATUS debe mostrar (healthy)
 curl http://localhost:3001/health
 docker exec test-app whoami     # debe devolver "node"
@@ -431,8 +431,8 @@ Para cerrar, commit y tag en Gitea:
 
 ```
 git add .
-git commit -m "feat: dockerizar la aplicación (v1.1.1)"
-git tag v1.1.1
+git commit -m "feat: dockerizar la aplicación (v1.2.1)"
+git tag v1.2.1
 git push origin main --tags
 ```
 
@@ -485,10 +485,10 @@ Pueden lanzarse oralmente o en un formulario rápido:
 **Entregable** (en Aules):
 
 - Dockerfile final y `.dockerignore`.
-- Captura de `docker ps` con el contenedor `(healthy)` y de la respuesta de `/health` con la versión 1.1.1.
+- Captura de `docker ps` con el contenedor `(healthy)` y de la respuesta de `/health` con la versión 1.2.1.
 - Tabla del experimento de caché con la conclusión en dos o tres líneas.
 - Respuestas a las preguntas de control de las partes B y D.
-- Tag `v1.1.1` subido a Gitea.
+- Tag `v1.2.1` subido a Gitea.
 
 **Enlace con la siguiente sesión:** hoy la imagen solo existe en tu ordenador. En Docker II el siguiente paso natural es subirla a un registro, orquestar varios servicios y persistir datos con volúmenes, que es lo que luego necesitará Jenkins para construir y publicar la imagen automáticamente.
 
@@ -496,12 +496,12 @@ Pueden lanzarse oralmente o en un formulario rápido:
 
 | Indicador                                                | Evidencia                                                                 | ✓   |
 |----------------------------------------------------------|---------------------------------------------------------------------------|-----|
-| Construye una imagen funcional a partir de un Dockerfile | Imagen `v1.1.1` construida sin errores                                    |     |
+| Construye una imagen funcional a partir de un Dockerfile | Imagen `v1.2.1` construida sin errores                                    |     |
 | Ordena las instrucciones para aprovechar la caché        | Dependencias copiadas antes que el código y `CACHED` visible en la salida |     |
 | Ejecuta y publica el contenedor correctamente            | `/health` responde desde el anfitrión                                     |     |
 | Inspecciona y diagnostica contenedores                   | Uso correcto de `logs`, `exec`, `history` e `inspect`                     |     |
 | Aplica buenas prácticas básicas                          | `.dockerignore`, usuario no root, `HEALTHCHECK`, etiqueta versionada      |     |
-| Mantiene la trazabilidad de versiones                    | Commit y tag `v1.1.1` en Gitea coherentes con la imagen                   |     |
+| Mantiene la trazabilidad de versiones                    | Commit y tag `v1.2.1` en Gitea coherentes con la imagen                   |     |
 
 ---
 
