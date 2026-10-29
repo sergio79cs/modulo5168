@@ -175,14 +175,16 @@ Si algún build falla con `EAI_AGAIN` o `Temporary failure resolving`, es el DNS
 
 ### Paso 7. Versionar el resultado
 
-Habéis añadido `Dockerfile.mal` y cambiado el texto de `server.js`, sin funcionalidad nueva: según SemVer es un **parche**. Como la sesión 3 terminó en `v1.1.1`, la versión de hoy es `v1.1.2`. No reutilicéis `v1.1.0`: esa etiqueta ya existe desde la sesión 1 y Git la rechazaría (`tag 'v1.1.0' already exists`).
+Habéis añadido `Dockerfile.mal` y cambiado el texto de `server.js`, sin funcionalidad nueva: según SemVer es un **parche**. Como la sesión 3 terminó en `v1.2.1`, la versión de hoy es `v1.2.2`. Cada versión lleva una etiqueta nueva: si intentáis reutilizar una que ya existe, Git la rechaza (`tag 'v1.2.1' already exists`).
+
+Antes del commit, subid la versión a `1.2.2` en `package.json` y en la línea `ENV APP_VERSION` del `Dockerfile`, que es lo que devuelve `/version`.
 
 ```
-git add Dockerfile.mal server.js
-git commit -m "chore: comparativa de caché con Dockerfile.mal (v1.1.2)"
-git tag -a v1.1.2 -m "Sesión 4: comparativa de imágenes y caché"
+git add Dockerfile Dockerfile.mal package.json server.js
+git commit -m "chore: comparativa de caché con Dockerfile.mal (v1.2.2)"
+git tag -a v1.2.2 -m "Sesión 4: comparativa de imágenes y caché"
 git push origin main --tags
-docker tag modulo5168-app:multistage modulo5168-app:v1.1.2
+docker tag modulo5168-app:multistage modulo5168-app:v1.2.2
 ```
 
 Así la etiqueta de la imagen coincide con la del código.
