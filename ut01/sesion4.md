@@ -50,7 +50,7 @@ cd lab/app
 ls -la
 ```
 
-Debe contener `server.js`, `package.json`, `package-lock.json`, `.dockerignore`, `Dockerfile` (multi-stage) y `Dockerfile.singlestage`. Las dos versiones del Dockerfile ya vienen en el laboratorio: hoy no hay que escribir código, sino analizarlas y medirlas.
+Debe contener `server.js`, `package.json`, `package-lock.json`, `.dockerignore`, `Dockerfile` (multi-stage) y `Dockerfile.singlestage`. Las dos versiones del Dockerfile ya vienen en el laboratorio: hoy se trata sobre todo de analizarlas y medirlas (en el paso 6 crearéis un tercer Dockerfile para el experimento de caché).
 
 ### Paso 2. Analizar y construir la versión single-stage
 
@@ -134,9 +134,42 @@ curl http://localhost:3003/health
 
 En la columna STATUS, `app-multi` debe mostrar `(healthy)` y `app-single` no mostrará estado de salud. Para limpiar: `docker rm -f app-single app-multi`.
 
-### Paso 6. Caché
+### Paso 6. Caché: el orden de las instrucciones importa
 
-Modificad el texto de la ruta `/` en `server.js`, reconstruid ambas imágenes con `time docker build ...` y comparad qué capas se reaprovechan (`CACHED`). Como en los dos Dockerfiles se copia `package*.json` antes que `server.js`, la instalación de dependencias debe salir de caché en ambos.
+Los dos Dockerfiles del laboratorio copian `package.json` y `package-lock.json` antes que `server.js`, así que los dos aprovechan bien la caché. Para ver qué pasa cuando el orden es incorrecto, cread un tercer fichero, `Dockerfile.mal`, que copia todo el código antes de instalar las dependencias:
+
+```
+FROM node:20-alpine
+WORKDIR /app
+COPY . .
+RUN npm ci --omit=dev
+ENV PORT=3000
+EXPOSE 3000
+CMD ["node", "server.js"]
+```
+
+Construid las dos versiones una primera vez para que quede todo en caché:
+
+```
+docker build -f Dockerfile.mal -t modulo5168-app:mal .
+docker build -t modulo5168-app:v1.1.0 .
+```
+
+Ahora cambiad el texto de la ruta `/` en `server.js` (por ejemplo, `Hola desde el módulo 5168` → `Hola desde la sesión 4`), guardad el fichero y reconstruid las dos midiendo el tiempo:
+
+```
+time docker build -f Dockerfile.mal -t modulo5168-app:mal .
+time docker build -t modulo5168-app:v1.1.0 .
+```
+
+Comparad la salida de los dos builds:
+
+- En `Dockerfile.mal`, `COPY . .` ya no sale de caché porque ha cambiado un fichero, y por eso **`RUN npm ci` se vuelve a ejecutar entero** y se descargan otra vez todas las dependencias.
+- En `Dockerfile`, la etapa `builder` sale completa como `CACHED` (incluido `RUN npm ci`) y solo se rehace `COPY server.js package.json ./`.
+
+Conclusión: una instrucción que cambia invalida la caché de todas las que vienen detrás. Por eso se copian primero los ficheros que cambian poco (dependencias) y al final los que cambian mucho (código).
+
+Si todo os sale `CACHED` después de editar, comprobad que habéis guardado `server.js` y que estáis construyendo en la misma carpeta donde lo habéis editado.
 
 Si algún build falla con `EAI_AGAIN` o `Temporary failure resolving`, es el DNS de la red del centro: fija el DNS de Docker como indica el paso 1 de la guía de instalación (clave `dns` en `/etc/docker/daemon.json`, sin borrar el resto) y reinicia Docker.
 
@@ -153,7 +186,13 @@ Tabla comparativa rellenada con los datos reales obtenidos:
 | Nº de capas (`docker history`)                          |               |                        |
 | Usuario de ejecución                                    |               |                        |
 | ¿Tiene HEALTHCHECK?                                     |               |                        |
-| (Opcional) ¿Reinstala dependencias al cambiar `server.js`? |            |                        |
+
+Y una segunda tabla con el resultado del paso 6:
+
+|                                                  | `Dockerfile.mal` | `Dockerfile` (multi-stage) |
+|--------------------------------------------------|------------------|----------------------------|
+| ¿Se vuelve a ejecutar `npm ci` al cambiar `server.js`? |            |                            |
+| Tiempo del rebuild (`time`)                      |                  |                            |
 
 A la tabla se añade una **conclusión razonada** (10-15 líneas) que responda a:
 
