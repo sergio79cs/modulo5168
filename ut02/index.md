@@ -123,7 +123,7 @@ Si el pipeline falla a mitad de camino, puede dejar en el clúster recursos hué
 
 No hay contenido nuevo: se trata de recorrer el flujo completo sobre tu propio pipeline. Validarás los parámetros (a), recopilarás la configuración de cada entorno con Ansible (b), verificarás el despliegue sin errores (c) y provocarás un fallo real para comprobar que el pipeline se detiene y limpia lo que había creado (d). Se revisa en el momento contra la rúbrica de esta página.
 
-📄 Material en preparación.
+📄 [Ir a la sesión 12](sesion12.md)
 
 ## Cómo se evalúa
 
