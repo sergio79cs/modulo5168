@@ -102,58 +102,47 @@ EOF
 
 ### Paso 2 — install.sh
 
-```
+Copia y pega este bloque entero en la terminal, desde la raíz del repositorio `modulo5168-app`. Crea el fichero `scripts/install.sh` con todo lo que hay entre `cat > ... <<'EOF'` y la línea `EOF`, y le da permiso de ejecución. No lanza el script: eso se hace en el paso 5.
+
+```bash
+mkdir -p scripts
+cat > scripts/install.sh <<'EOF'
 #!/usr/bin/env bash
 # install.sh — instala o actualiza modulo5168-app a la versión indicada
 # Uso: ./scripts/install.sh <version>     (ej.: ./scripts/install.sh v1.3.0)
 set -euo pipefail
-```
 
-```
 VERSION="${1:?Uso: $0 <version>}"
 REGISTRY="${REGISTRY:-localhost:5000}"
 IMAGEN="${REGISTRY}/modulo5168-app:${VERSION}"
 CONTENEDOR="modulo5168-app"
 PUERTO="${PUERTO:-3004}"
 DIR_DATOS="${DIR_DATOS:-$HOME/modulo5168/data}"
-```
 
-```
 echo "==> Comprobando dependencias del sistema..."
 for cmd in docker curl; do
   command -v "$cmd" >/dev/null 2>&1 || { echo "ERROR: falta '$cmd'"; exit 1; }
 done
 docker info >/dev/null 2>&1 || { echo "ERROR: el demonio Docker no responde"; exit 1; }
-```
 
-```
 echo "==> Preparando directorio de datos: $DIR_DATOS"
 mkdir -p "$DIR_DATOS"
 if [ ! -f "$DIR_DATOS/app.conf" ]; then
   echo "    Primera instalación: se copia la configuración por defecto"
   cp config/app.conf.example "$DIR_DATOS/app.conf"
 fi
-```
 
-```
 echo "==> Descargando $IMAGEN"
 docker pull "$IMAGEN"
-```
 
-```
 echo "==> Sustituyendo el contenedor anterior (si existe)"
 docker rm -f "$CONTENEDOR" >/dev/null 2>&1 || true
-```
-
-```
 docker run -d --name "$CONTENEDOR" \
   -p "${PUERTO}:3000" \
   -v "$DIR_DATOS:/app/data" \
   --restart unless-stopped \
   "$IMAGEN"
-```
 
-```
 echo "==> Verificando que la aplicación responde..."
 for i in $(seq 1 10); do
   if curl -fs "http://localhost:${PUERTO}/" >/dev/null; then
@@ -164,51 +153,44 @@ for i in $(seq 1 10); do
 done
 echo "ERROR: la aplicación no responde tras la instalación"
 exit 1
+EOF
+chmod +x scripts/install.sh
 ```
 
 > *La app escucha en el puerto 3000 dentro del contenedor; en el equipo se publica en el 3004 para no chocar con Gitea (3000), los contenedores de prueba (3001-3003) ni Jenkins (8080). La carpeta* `/app/data` *y* `app.conf` *simulan los datos de producción: la app de ejemplo no los lee, pero el volumen permite comprobar que sobreviven al cambio de contenedor.*
 
 ### Paso 3 — migrate-data.sh
 
-```
+Igual que en el paso anterior: copia y pega este bloque entero en la terminal. Crea el fichero `scripts/migrate-data.sh` y le da permiso de ejecución.
+
+```bash
+cat > scripts/migrate-data.sh <<'EOF'
 #!/usr/bin/env bash
 # migrate-data.sh — adapta la configuración existente al formato de la versión indicada
 # Uso: ./scripts/migrate-data.sh <version>
 set -euo pipefail
-```
 
-```
 VERSION="${1:?Uso: $0 <version>}"
 DIR_DATOS="${DIR_DATOS:-$HOME/modulo5168/data}"
 CONF="$DIR_DATOS/app.conf"
-```
 
-```
 if [ ! -f "$CONF" ]; then
   echo "No hay configuración previa: nada que migrar"
   exit 0
 fi
-```
 
-```
 ACTUAL=$(grep -E '^CONFIG_VERSION=' "$CONF" | cut -d= -f2 || echo 1)
 echo "==> Formato actual de la configuración: $ACTUAL"
-```
 
-```
 if [ "$ACTUAL" -ge 2 ]; then
   echo "La configuración ya está en formato 2: no se hace nada"
   exit 0
 fi
-```
 
-```
 COPIA="$CONF.bak.$(date +%Y%m%d-%H%M%S)"
 cp "$CONF" "$COPIA"
 echo "==> Copia de seguridad creada: $COPIA"
-```
 
-```
 echo "==> Adaptando configuración de la versión anterior a $VERSION..."
 sed -i 's/^DB_HOST=/DATABASE_HOST=/' "$CONF"
 grep -q '^LOG_LEVEL=' "$CONF" || echo 'LOG_LEVEL=info' >> "$CONF"
@@ -217,10 +199,10 @@ if grep -q '^CONFIG_VERSION=' "$CONF"; then
 else
   echo 'CONFIG_VERSION=2' >> "$CONF"
 fi
-```
 
-```
 echo "Migración completada"
+EOF
+chmod +x scripts/migrate-data.sh
 ```
 
 Después se actualiza `config/app.conf.example` al formato 2. Las instalaciones nuevas ya parten del formato nuevo.
