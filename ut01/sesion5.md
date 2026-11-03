@@ -213,9 +213,7 @@ El orden importa: primero se preserva la versión actual y después se publica l
 
 ```
 REG="${REG:-localhost:5000}"
-```
 
-```
 # 1. Publicar la versión actual (v1.2.2, de la sesión 4) y marcarla como 'previous'
 docker tag  modulo5168-app:v1.2.2 $REG/modulo5168-app:v1.2.2
 docker push $REG/modulo5168-app:v1.2.2
@@ -231,17 +229,13 @@ Antes de construir la nueva, subid la versión a `1.3.0` en `package.json` y en 
 # 2. Construir y publicar la nueva
 docker build -t $REG/modulo5168-app:v1.3.0 .
 docker push $REG/modulo5168-app:v1.3.0
-```
 
-```
 # 3. Etiquetar la versión en Git
 git add .
 git commit -m "feat: paquete de despliegue con instalación y migración (v1.3.0)"
 git tag -a v1.3.0 -m "Versión 1.3.0: nuevo formato de configuración"
 git push origin main --tags
-```
 
-```
 # 4. Comprobar
 docker images | grep modulo5168-app
 curl -s http://$REG/v2/modulo5168-app/tags/list
@@ -253,26 +247,18 @@ La última orden debería devolver algo como `{"name":"modulo5168-app","tags":["
 
 ```
 chmod +x scripts/*.sh
-```
 
-```
 # Estado de partida: v1.2.2 funcionando con configuración v1
 ./scripts/install.sh v1.2.2
-```
 
-```
 # Actualización: primero datos, luego imagen
 ./scripts/migrate-data.sh v1.3.0
 ./scripts/install.sh v1.3.0
 cat ~/modulo5168/data/app.conf        # comprobar formato 2
-```
 
-```
 # Idempotencia: repetir no debe romper nada
 ./scripts/migrate-data.sh v1.3.0
-```
 
-```
 # Reversión: imagen anterior + restaurar datos
 ./scripts/install.sh previous
 cp ~/modulo5168/data/app.conf.bak.* ~/modulo5168/data/app.conf
