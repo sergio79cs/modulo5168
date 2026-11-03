@@ -77,19 +77,43 @@ No arranques un registry:2 en el 5000 si ya existe el del laboratorio: el puerto
 
 ### Paso 1 — Estructura del repositorio
 
+La app del zip (`lab/app`) todavía no tiene `VERSION`, `CHANGELOG.md` ni las carpetas `config/` y `scripts/`: las creáis en esta sesión. Así queda la carpeta al terminar:
+
 ```
-modulo5168-app/
-├── Dockerfile
-├── VERSION                  # contiene: v1.3.0
-├── CHANGELOG.md
+lab/app/
+├── server.js, package.json, Dockerfile...   # ya estaban (sesiones 3 y 4)
+├── VERSION                  # nuevo (paso 1): contiene v1.3.0
+├── CHANGELOG.md             # nuevo (paso 1)
 ├── config/
-│   └── app.conf.example     # plantilla en formato de la versión actual
+│   └── app.conf.example     # nuevo (paso 1): plantilla de configuración
 └── scripts/
-    ├── install.sh
-    └── migrate-data.sh
+    ├── install.sh           # nuevo (paso 2)
+    └── migrate-data.sh      # nuevo (paso 3)
 ```
 
-Para simular un sistema con datos de la versión anterior, se crea la configuración "de producción" en formato v1:
+Crea ahora la plantilla de configuración, todavía en formato 1 (el de la v1.2.2), y los ficheros `VERSION` y `CHANGELOG.md`. Desde la carpeta `lab/app`:
+
+```bash
+mkdir -p config
+cat > config/app.conf.example <<'EOF'
+CONFIG_VERSION=1
+APP_NAME=modulo5168
+DB_HOST=localhost
+EOF
+echo "v1.3.0" > VERSION
+cat > CHANGELOG.md <<'EOF'
+# Changelog
+
+## v1.3.0
+- Nuevo formato de configuración (formato 2): `DB_HOST` pasa a llamarse `DATABASE_HOST` y se añade `LOG_LEVEL`.
+- Se añaden `scripts/install.sh` y `scripts/migrate-data.sh`.
+
+## v1.2.2
+- Imagen optimizada de la sesión 4.
+EOF
+```
+
+Para simular un sistema con datos de la versión anterior, se crea la configuración "de producción" en formato v1. Esta va fuera del repositorio, en `~/modulo5168/data`, que es la carpeta que `install.sh` monta en el contenedor:
 
 ```
 mkdir -p ~/modulo5168/data
@@ -102,7 +126,7 @@ EOF
 
 ### Paso 2 — install.sh
 
-Copia y pega este bloque entero en la terminal, desde la raíz del repositorio `modulo5168-app`. Crea el fichero `scripts/install.sh` con todo lo que hay entre `cat > ... <<'EOF'` y la línea `EOF`, y le da permiso de ejecución. No lanza el script: eso se hace en el paso 5.
+Copia y pega este bloque entero en la terminal, desde la carpeta `lab/app`. Crea el fichero `scripts/install.sh` con todo lo que hay entre `cat > ... <<'EOF'` y la línea `EOF`, y le da permiso de ejecución. No lanza el script: eso se hace en el paso 5.
 
 ```bash
 mkdir -p scripts
@@ -205,7 +229,16 @@ EOF
 chmod +x scripts/migrate-data.sh
 ```
 
-Después se actualiza `config/app.conf.example` al formato 2. Las instalaciones nuevas ya parten del formato nuevo.
+Por último, actualiza la plantilla del repositorio al formato 2, para que las instalaciones nuevas ya partan del formato nuevo:
+
+```bash
+cat > config/app.conf.example <<'EOF'
+CONFIG_VERSION=2
+APP_NAME=modulo5168
+DATABASE_HOST=localhost
+LOG_LEVEL=info
+EOF
+```
 
 ### Paso 4 — Publicar la versión nueva conservando la anterior
 
