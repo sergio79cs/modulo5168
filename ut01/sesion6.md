@@ -29,7 +29,7 @@ Las pruebas se clasifican de dos formas complementarias: por **lo que verifican*
 |-----------------------------|--------------------------------------------------------------------|--------------------|-------------------------------------------------------------|
 | Unitarias                   | Una función o clase aislada                                        | Milisegundos       | La función que formatea la versión devuelve `"1.3.0"`       |
 | Integración                 | Varios componentes juntos (app + base de datos, app + API externa) | Segundos           | La app lee la versión del fichero `VERSION` real            |
-| Sistema / extremo a extremo | La aplicación desplegada, desde fuera                              | Segundos a minutos | `curl` a `/version` sobre el contenedor arrancado           |
+| Sistema / extremo a extremo | La aplicación desplegada, desde fuera                              | Segundos a minutos | `curl` a `/health` sobre el contenedor arrancado            |
 | Aceptación                  | Que se cumple un requisito del cliente                             | Variable           | «El endpoint de versión responde en menos de 200 ms»        |
 
 **La pirámide de pruebas** (Mike Cohn) recomienda muchas pruebas unitarias en la base, menos de integración en medio y pocas de extremo a extremo arriba. Las de abajo son rápidas, baratas y precisas: cuando fallan indican exactamente qué se ha roto. Las de arriba son lentas y frágiles, pero son las únicas que comprueban que todo funciona junto.
@@ -58,7 +58,7 @@ Una prueba funcional comprueba **qué hace** el software: dada una entrada, ¿pr
 
 **Variantes que se usan en un pipeline:**
 
-- **Smoke test** (prueba de humo): comprobación mínima justo después de desplegar para saber si la aplicación «arranca y responde». El nombre viene de la electrónica: enchufar el aparato y ver si echa humo. Nuestro test de `/version` es un smoke test.
+- **Smoke test** (prueba de humo): comprobación mínima justo después de desplegar para saber si la aplicación «arranca y responde». El nombre viene de la electrónica: enchufar el aparato y ver si echa humo. Nuestro test de `/health` es un smoke test.
 - **Sanity test**: comprobación rápida y concreta tras un cambio pequeño, por ejemplo verificar que la corrección de un bug funciona.
 - **Regresión**: volver a ejecutar las pruebas existentes para asegurar que un cambio nuevo no ha roto algo que ya funcionaba. En CD, toda la batería se ejecuta en cada commit, así que todo el pipeline es una prueba de regresión continua.
 - **Aceptación**: verifican que se cumple lo acordado con el cliente, a menudo escritas como escenarios «Dado… cuando… entonces…» (formato Gherkin).
@@ -69,7 +69,7 @@ Una prueba funcional comprueba **qué hace** el software: dada una entrada, ¿pr
 | Fase      | Qué se hace                                                     | En `test-funcional.sh`                                     |
 |-----------|-----------------------------------------------------------------|------------------------------------------------------------|
 | Preparar  | Fijar el estado inicial y el resultado esperado                 | Definir `URL` y `VERSION_ESPERADA`                         |
-| Actuar    | Ejecutar la acción que se prueba                                | `curl` a `/version`                                        |
+| Actuar    | Ejecutar la acción que se prueba                                | `curl` a `/health`                                         |
 | Verificar | Comparar el resultado obtenido con el esperado (el «oráculo»)   | Comparar código HTTP y versión; `exit 1` si no coinciden   |
 
 El **oráculo** es lo que dice cuál es la respuesta correcta. El error del script original del guion es precisamente que no tenía oráculo: comprobaba que hubiera una respuesta, no que fuera la correcta.
@@ -120,7 +120,7 @@ En esta sesión harás una **prueba de carga** sencilla. Las demás siguen la mi
 - El **p90** es 28 ms: el 90 % de las peticiones tardaron 28 ms o menos.
 - El **p99** o el máximo (900 ms) muestran la «cola»: lo que sufren los peores casos.
 
-Un solo valor extremo distorsiona la media. Por eso los objetivos de rendimiento profesionales se escriben con percentiles, por ejemplo: «el p95 de `/version` por debajo de 200 ms».
+Un solo valor extremo distorsiona la media. Por eso los objetivos de rendimiento profesionales se escriben con percentiles, por ejemplo: «el p95 de `/health` por debajo de 200 ms».
 
 **Relación entre las métricas.** Con concurrencia baja, al aumentar la concurrencia sube el throughput y la latencia apenas cambia. Llega un punto en que el servidor se satura: el throughput deja de crecer y la latencia se dispara porque las peticiones esperan en cola. Encontrar ese punto es el objetivo de la tabla de concurrencias de la práctica.
 
@@ -173,7 +173,7 @@ Una medición sin umbral no es una prueba: es un informe. Para que una prueba no
 
 | Criterio mal planteado      | Criterio bien planteado                                                      |
 |-----------------------------|------------------------------------------------------------------------------|
-| «La app debe ser rápida»    | «Con 10 peticiones concurrentes, el p95 de `/version` es menor de 200 ms»    |
+| «La app debe ser rápida»    | «Con 10 peticiones concurrentes, el p95 de `/health` es menor de 200 ms»    |
 | «No debe fallar»            | «Con 100 peticiones, `Failed requests` es 0 y no hay respuestas no 2xx»      |
 | «Debe aguantar carga»       | «Con `-c 50` se mantienen al menos 300 req/s en el equipo de referencia»     |
 
@@ -216,10 +216,10 @@ Levantar la app de sesiones anteriores y comprobar a mano. El contenedor se llam
 REG="${REG:-localhost:5000}"
 docker rm -f test-app app 2>/dev/null
 docker run -d --name app --network lab5168 -p 3001:3000 $REG/modulo5168-app:v1.3.0
-curl http://localhost:3001/version
+curl http://localhost:3001/health
 ```
 
-Debe responder `{"version":"1.3.0"}`. La imagen es la v1.3.0 que construiste y subiste al registry en la sesión 5, por eso su nombre empieza por el registry (`localhost:5000/modulo5168-app:v1.3.0`). Si en la sesión 5 usaste el registry temporal, ejecuta antes `export REG=localhost:5001`: la variable no se conserva al abrir una terminal nueva.
+Debe responder algo como `{"status":"ok","version":"1.3.0","uptime":2.5}`. El endpoint `/health` existe en todas las versiones de la aplicación e incluye la versión, por eso las pruebas de esta sesión y de la siguiente lo usan para comprobarla. La imagen es la v1.3.0 que construiste y subiste al registry en la sesión 5, por eso su nombre empieza por el registry (`localhost:5000/modulo5168-app:v1.3.0`). Si en la sesión 5 usaste el registry temporal, ejecuta antes `export REG=localhost:5001`: la variable no se conserva al abrir una terminal nueva.
 
 ### Paso 1 · Prueba funcional con puerta de calidad
 
@@ -231,9 +231,9 @@ El script del guion original tiene dos fallos que conviene que descubran: da PAS
 URL="${URL:-http://localhost:3001}"
 ESPERADA="${VERSION_ESPERADA:-1.3.0}"
 
-CODIGO=$(curl -s -o /tmp/resp.json -w '%{http_code}' "$URL/version")
+CODIGO=$(curl -s -o /tmp/resp.json -w '%{http_code}' "$URL/health")
 if [ "$CODIGO" != "200" ]; then
-  echo "FAIL: /version devolvió HTTP $CODIGO"
+  echo "FAIL: /health devolvió HTTP $CODIGO"
   exit 1
 fi
 
