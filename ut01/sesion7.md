@@ -34,7 +34,7 @@ Una salida sin contexto no se puede comparar. Si mañana encuentras un fichero q
 | Fecha y hora          | Ordenar resultados y relacionarlos con otros eventos                 | `date -Iseconds` (formato ISO 8601) |
 | Máquina               | Los resultados de equipos distintos no son comparables               | `hostname`                     |
 | Parámetros            | `-n 100 -c 10` y `-n 1000 -c 50` miden cosas distintas               | Escribirlos en la cabecera     |
-| URL o endpoint        | `/` y `/version` pueden tener rendimientos muy diferentes            | Variable `URL` del script      |
+| URL o endpoint        | `/` y `/health` pueden tener rendimientos muy diferentes            | Variable `URL` del script      |
 
 **Reproducibilidad.** Una medición es reproducible cuando otra persona, con los mismos metadatos, puede repetirla y obtener resultados parecidos. Si falta un metadato, el resultado deja de ser reproducible y pierde casi todo su valor.
 
@@ -196,18 +196,18 @@ REG="${REG:-localhost:5000}"
 docker rm -f app 2>/dev/null
 docker run -d --name app --network lab5168 -p 3001:3000 $REG/modulo5168-app:v1.2.2
 sleep 3
-curl http://localhost:3001/version        # debe responder {"version":"1.2.2"}
+curl http://localhost:3001/health         # debe incluir "version":"1.2.2"
 ./guardar-resultados.sh v1.2.2
 
 # Versión actual: v1.3.0
 docker rm -f app
 docker run -d --name app --network lab5168 -p 3001:3000 $REG/modulo5168-app:v1.3.0
 sleep 3
-curl http://localhost:3001/version        # debe responder {"version":"1.3.0"}
+curl http://localhost:3001/health         # debe incluir "version":"1.3.0"
 ./guardar-resultados.sh v1.3.0
 ```
 
-Si la v1.2.2 responde `{"version":"1.2.1"}`, la imagen se etiquetó en la sesión 4 antes de cambiar `APP_VERSION` en el Dockerfile, y el test funcional fallará. Reconstrúyela desde su etiqueta de Git, que sí tiene la versión correcta, y vuelve a subirla:
+Si la v1.2.2 indica `"version":"1.2.1"`, la imagen se etiquetó en la sesión 4 antes de subir la versión en `package.json` y en el Dockerfile, y el test funcional fallará. Reconstrúyela desde su etiqueta de Git, que sí tiene la versión correcta, y vuelve a subirla:
 
 ```
 git switch --detach v1.2.2
@@ -304,7 +304,7 @@ El cambio se añade al principio del manejador de la ruta `/` de la aplicación:
 const fin = Date.now() + 20; while (Date.now() < fin) {}
 ```
 
-Además de añadir esas dos líneas en `server.js`, cambia la versión a `1.3.1` en `package.json` y en la línea `ENV APP_VERSION` del `Dockerfile`. Si no, `/version` seguiría respondiendo `1.3.0` y el test funcional de `guardar-resultados.sh` fallaría.
+Además de añadir esas dos líneas en `server.js`, cambia la versión a `1.3.1` en `package.json` y en la línea `ENV APP_VERSION` del `Dockerfile`. Si no, `/health` seguiría respondiendo `1.3.0` y el test funcional de `guardar-resultados.sh` fallaría.
 
 Como tienes tu propio laboratorio, crea la versión en tu repositorio:
 
