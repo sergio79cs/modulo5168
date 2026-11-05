@@ -213,10 +213,13 @@ Terminarás con dos scripts que fallan con exit 1 cuando la prueba no se cumple.
 Levantar la app de sesiones anteriores y comprobar a mano. El contenedor se llama app y está en la red del laboratorio, para que la etapa de Jenkins de la ampliación lo encuentre por su nombre; se publica en el 3001 porque el 3000 del equipo es Gitea:
 
 ```
+REG="${REG:-localhost:5000}"
 docker rm -f test-app app 2>/dev/null
-docker run -d --name app --network lab5168 -p 3001:3000 modulo5168-app:v1.3.0
+docker run -d --name app --network lab5168 -p 3001:3000 $REG/modulo5168-app:v1.3.0
 curl http://localhost:3001/version
 ```
+
+Debe responder `{"version":"1.3.0"}`. La imagen es la v1.3.0 que construiste y subiste al registry en la sesión 5, por eso su nombre empieza por el registry (`localhost:5000/modulo5168-app:v1.3.0`). Si en la sesión 5 usaste el registry temporal, ejecuta antes `export REG=localhost:5001`: la variable no se conserva al abrir una terminal nueva.
 
 ### Paso 1 · Prueba funcional con puerta de calidad
 
@@ -252,16 +255,44 @@ fi
 
 ### Paso 2 · Prueba de carga con Apache Bench
 
-Si no tienen `ab` instalado (paquete `apache2-utils` en Debian/Ubuntu), la imagen oficial de httpd ya lo incluye:
+Apache Bench (`ab`) es un programa de línea de comandos que lanza muchas peticiones HTTP a una URL y mide cuánto tarda el servidor en responder. Forma parte de las utilidades del servidor web Apache, pero no hace falta instalar ni arrancar Apache: solo la herramienta.
+
+**1. Comprueba si ya lo tienes:**
 
 ```
-# Linux
+ab -V
+```
+
+Si responde algo como `This is ApacheBench, Version 2.3`, ya está instalado y puedes pasar al punto 3. Si responde `ab: command not found` (u `orden no encontrada`), instálalo.
+
+**2. Instálalo** (Ubuntu o Debian, también dentro de la máquina virtual del laboratorio):
+
+```
+sudo apt-get update
+sudo apt-get install -y apache2-utils
+ab -V
+```
+
+El paquete no se llama `ab` ni `apachebench`, sino `apache2-utils`. Solo instala herramientas de línea de comandos (`ab`, `htpasswd`…); no instala ni arranca el servidor Apache, así que no ocupa ningún puerto. Si ya seguiste el apartado «Herramientas en tu equipo» de la guía del laboratorio, ya lo tienes.
+
+Si no puedes usar `sudo`, puedes lanzar `ab` desde un contenedor con la imagen oficial `httpd:2.4`, que ya lo incluye. Sirve para probar a mano, pero `test-carga.sh` llama a `ab` directamente, así que para el script necesitas tenerlo instalado en tu equipo:
+
+```
+# Linux: --network host hace que localhost sea tu equipo y no el contenedor
 docker run --rm --network host httpd:2.4 ab -n 100 -c 10 http://localhost:3001/
 # Docker Desktop (Windows/Mac)
 docker run --rm httpd:2.4 ab -n 100 -c 10 http://host.docker.internal:3001/
 ```
 
-`ab` exige la barra final en la URL; sin ella da «invalid URL».
+**3. Haz una primera prueba a mano** con la aplicación arrancada (paso 0):
+
+```
+ab -n 100 -c 10 http://localhost:3001/
+```
+
+`-n 100` es el número total de peticiones y `-c 10` cuántas se envían a la vez. `ab` exige la barra final en la URL; sin ella da «invalid URL». Al terminar muestra un informe; el apartado 1.5 de la teoría explica cada línea.
+
+**4. Crea el script con criterio de aceptación**, `test-carga.sh`:
 
 ```
 #!/bin/bash
