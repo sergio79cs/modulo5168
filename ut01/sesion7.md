@@ -147,9 +147,11 @@ En esta sesión los resultados se guardan en el repositorio Git, junto al códig
 
 ### Paso 0. Comprobaciones previas
 
-- `ab` está instalado: `ab -V`. En Debian/Ubuntu viene en el paquete `apache2-utils`.
-- La aplicación responde en `http://localhost:3001/` (contenedor app de la sesión 6).
-- Existen las etiquetas de versión de sesiones anteriores: `git tag`.
+- `ab` está instalado: `ab -V`. Si no lo está, sigue el paso 2 de la sesión 6 (`sudo apt-get install -y apache2-utils`).
+- Trabajas en la carpeta `lab/app` del repositorio, donde están `test-funcional.sh` y `test-carga.sh` de la sesión 6. Si los creaste en otra carpeta, cópialos aquí.
+- La aplicación responde en `http://localhost:3001/` (contenedor `app` de la sesión 6).
+- Existen las etiquetas de versión de sesiones anteriores: `git tag` debe mostrar al menos `v1.2.2` y `v1.3.0`.
+- Las imágenes de esas dos versiones están en el registry desde la sesión 5: `curl -s http://${REG:-localhost:5000}/v2/modulo5168-app/tags/list`. Si en la sesión 5 usaste el registry temporal, ejecuta antes `export REG=localhost:5001`.
 
 ### Paso 1. Script para guardar resultados con metadatos
 
@@ -161,34 +163,60 @@ Redirigir la salida sin más pierde stderr y no deja constancia del commit proba
 set -euo pipefail
 V=${1:?Uso: $0 <version>}
 URL=http://localhost:3001/
+COMMIT=$(git rev-parse --short "$V^{commit}")    # commit de la etiqueta que se mide
 mkdir -p test-results
 
 {
-  echo "# version=$V commit=$(git rev-parse --short HEAD) fecha=$(date -Iseconds) host=$(hostname)"
-  ./test-funcional.sh
+  echo "# version=$V commit=$COMMIT fecha=$(date -Iseconds) host=$(hostname)"
+  VERSION_ESPERADA="${V#v}" ./test-funcional.sh   # v1.2.2 -> espera 1.2.2
 } > "test-results/funcional-$V.txt" 2>&1
 
 ab -n 200 -c 10 "$URL" > /dev/null 2>&1          # calentamiento, no se guarda
 {
-  echo "# version=$V commit=$(git rev-parse --short HEAD) fecha=$(date -Iseconds) params=-n1000,-c10"
+  echo "# version=$V commit=$COMMIT fecha=$(date -Iseconds) params=-n1000,-c10"
   ab -n 1000 -c 10 "$URL"
 } > "test-results/carga-$V.txt"
 ```
 
-Por el `set -e`, si el test funcional falla el script se detiene y no se hace la prueba de carga. Conviene comentarlo en clase: no tiene sentido medir el rendimiento de una versión rota.
+Por el `set -e`, si el test funcional falla el script se detiene y no se hace la prueba de carga: no tiene sentido medir el rendimiento de una versión rota.
+
+Dos detalles del script:
+
+- `VERSION_ESPERADA="${V#v}"` quita la `v` del principio (`v1.2.2` pasa a `1.2.2`) y se la pasa a `test-funcional.sh`. Sin esto, el test esperaría siempre `1.3.0`, su valor por defecto, y fallaría al medir la v1.2.2.
+- `git rev-parse --short "$V^{commit}"` guarda el commit de la etiqueta que se mide, no el commit en el que estás trabajando. Así la cabecera dice exactamente qué código se ha probado.
 
 ### Paso 2. Resultados de v1.2.2 y v1.3.0
 
-El entregable pide al menos dos versiones. Si no hay resultados guardados de v1.2.2, se generan ahora. Hay que medir v1.2.2 antes de hacer commit de los scripts, porque al cambiar a esa etiqueta desaparecerían del directorio de trabajo:
+El entregable pide al menos dos versiones. Las imágenes de v1.2.2 y v1.3.0 ya están en el registry desde la sesión 5, así que no hace falta cambiar de rama ni reconstruir nada: basta con arrancar cada versión en el contenedor `app` y medirla.
+
+```
+REG="${REG:-localhost:5000}"
+
+# Versión anterior: v1.2.2
+docker rm -f app 2>/dev/null
+docker run -d --name app --network lab5168 -p 3001:3000 $REG/modulo5168-app:v1.2.2
+sleep 3
+curl http://localhost:3001/version        # debe responder {"version":"1.2.2"}
+./guardar-resultados.sh v1.2.2
+
+# Versión actual: v1.3.0
+docker rm -f app
+docker run -d --name app --network lab5168 -p 3001:3000 $REG/modulo5168-app:v1.3.0
+sleep 3
+curl http://localhost:3001/version        # debe responder {"version":"1.3.0"}
+./guardar-resultados.sh v1.3.0
+```
+
+Si la v1.2.2 responde `{"version":"1.2.1"}`, la imagen se etiquetó en la sesión 4 antes de cambiar `APP_VERSION` en el Dockerfile, y el test funcional fallará. Reconstrúyela desde su etiqueta de Git, que sí tiene la versión correcta, y vuelve a subirla:
 
 ```
 git switch --detach v1.2.2
-# arrancar la aplicación como en sesiones anteriores
-./guardar-resultados.sh v1.2.2
+docker build -t $REG/modulo5168-app:v1.2.2 .
+docker push $REG/modulo5168-app:v1.2.2
 git switch main
-# volver a arrancar la aplicación con la versión actual
-./guardar-resultados.sh v1.3.0
 ```
+
+Después repite los comandos de la v1.2.2 del bloque anterior.
 
 ### Paso 3. Script de comparación
 
@@ -276,19 +304,26 @@ El cambio se añade al principio del manejador de la ruta `/` de la aplicación:
 const fin = Date.now() + 20; while (Date.now() < fin) {}
 ```
 
+Además de añadir esas dos líneas en `server.js`, cambia la versión a `1.3.1` en `package.json` y en la línea `ENV APP_VERSION` del `Dockerfile`. Si no, `/version` seguiría respondiendo `1.3.0` y el test funcional de `guardar-resultados.sh` fallaría.
+
 Como tienes tu propio laboratorio, crea la versión en tu repositorio:
 
 ```
+REG="${REG:-localhost:5000}"
 git switch -c regresion
-# añadir las dos líneas anteriores en la ruta /
+# añadir las dos líneas anteriores en la ruta / de server.js
+# y cambiar la versión a 1.3.1 en package.json y en el Dockerfile
 git commit -am "feat: cambio en la ruta principal"
 git tag v1.3.1
-# arrancar la aplicación con este código
+docker build -t $REG/modulo5168-app:v1.3.1 .
+docker rm -f app
+docker run -d --name app --network lab5168 -p 3001:3000 $REG/modulo5168-app:v1.3.1
+sleep 3
 ./guardar-resultados.sh v1.3.1
 ./comparar-carga.sh test-results/carga-v1.3.0.txt test-results/carga-v1.3.1.txt
 ```
 
-El resultado esperado es NO APTA. Después se pide localizar la causa con `git diff v1.3.0 v1.3.1` y volver a `main` con `git switch main`. Para que el efecto sorprenda más, puedes repartir el cambio como fichero `.patch` (se aplica con `git apply`) sin decir qué contiene.
+El resultado esperado es NO APTA. Después se pide localizar la causa con `git diff v1.3.0 v1.3.1`, volver a `main` con `git switch main` y arrancar de nuevo la v1.3.0 en el contenedor `app`. Para que el efecto sorprenda más, puedes repartir el cambio como fichero `.patch` (se aplica con `git apply`) sin decir qué contiene.
 
 ---
 
