@@ -89,7 +89,7 @@ El Dockerfile ya cubre la construcción. `install.sh` cubre lo que ocurre fuera 
 |---------------|------------------------------------------------------------------------|-----------------------------------------------------------------|
 | `-e`          | El script se detiene en cuanto un comando falla                        | El script sigue ejecutando pasos sobre un sistema a medio instalar |
 | `-u`          | Usar una variable no definida es un error                              | Una errata en un nombre de variable se convierte en una cadena vacía |
-| `-o pipefail` | Una tubería falla si falla cualquiera de sus comandos, no solo el último | `comando_que_falla \| tee log` se daría por bueno               |
+| `-o pipefail` | Una tubería falla si falla cualquiera de sus comandos, no solo el último | Si un comando falla y su salida pasa a `tee`, el error pasa desapercibido               |
 
 **Valores por defecto y parámetros obligatorios.** En bash, `${VARIABLE:-valor}` usa `valor` si la variable no está definida, y `${1:?mensaje}` detiene el script con un mensaje si falta el primer argumento. Con esto el script se puede ajustar desde fuera (`PUERTO=3005 ./scripts/install.sh v1.3.0`) sin editarlo.
 
