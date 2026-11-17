@@ -68,7 +68,7 @@ El ciclo manual es `build → tag → login → push → pull`; Jenkins repite e
 
 ## Práctica
 
-Se hace primero el ciclo a mano y después se automatiza. Los ejemplos usan el usuario `alumno`; sustitúyelo por el tuyo.
+Se hace primero el ciclo a mano y después se automatiza. Los ejemplos usan el usuario `aula`, el de la VM del laboratorio; si trabajas con otro usuario de Gitea, sustitúyelo.
 
 ### Paso 1 · Ciclo manual
 
@@ -84,12 +84,12 @@ Publicamos la última versión apta, `v1.3.0`. Su etiqueta de Git ya existe desd
 ```
 git push origin v1.3.0             # si ya estaba subida, Git responde "Everything up-to-date"
 
-docker tag modulo5168-app:v1.3.0 localhost:3000/alumno/modulo5168-app:1.3.0
+docker tag modulo5168-app:v1.3.0 localhost:3000/aula/modulo5168-app:1.3.0
 docker login localhost:3000        # usuario de Gitea + token
-docker push localhost:3000/alumno/modulo5168-app:1.3.0
+docker push localhost:3000/aula/modulo5168-app:1.3.0
 
-docker rmi localhost:3000/alumno/modulo5168-app:1.3.0
-docker pull localhost:3000/alumno/modulo5168-app:1.3.0
+docker rmi localhost:3000/aula/modulo5168-app:1.3.0
+docker pull localhost:3000/aula/modulo5168-app:1.3.0
 ```
 
 Anotad el digest que muestra el push: debe coincidir con el del pull.
@@ -208,7 +208,7 @@ pipeline {
     // El push lo hace el daemon Docker del host (socket montado en Jenkins),
     // por eso el registry se nombra como lo ve el host: localhost:3000.
     REGISTRY = 'localhost:3000'
-    IMAGE    = 'localhost:3000/alumno/modulo5168-app'   // cambiar "alumno"
+    IMAGE    = 'localhost:3000/aula/modulo5168-app'   // usuario de Gitea (en la VM del laboratorio, aula)
   }
 
   stages {
