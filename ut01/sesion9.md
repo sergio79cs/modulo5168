@@ -19,6 +19,33 @@ Comprueba que tu laboratorio está listo. Si algo falla, revisa la [guía del la
 - ☐ El registry de paquetes de Gitea está activo y Docker puede iniciar sesión en él.
 - ☐ En Jenkins hay una credencial de Gitea guardada (usuario y token).
 
+## Preparación de la VM para esta sesión
+
+Si trabajas con la máquina virtual del laboratorio, haz esto antes de empezar.
+
+1. **Crea la red `ci`.** En la VM la red común se llama `lab5168`, pero el pipeline de esta sesión usa una red llamada `ci`. Créala y conecta los tres servicios. Si `docker network create` dice que ya existe, ignóralo.
+
+   ```
+   docker network create ci
+   docker network connect ci jenkins
+   docker network connect ci gitea
+   docker network connect ci sonarqube
+   ```
+
+   Dentro de la red `ci` los contenedores se encuentran por su nombre (`gitea:3000`, `sonarqube:9000`), no por `localhost`.
+
+2. **Comprueba que la VM tiene internet.** La construcción de la imagen (`npm ci`) y el análisis de seguridad con Trivy descargan datos de internet. Este comando debe responder `HTTP/2 200`; si no responde, revisa el DNS de la VM en la [guía del laboratorio](../laboratorio/):
+
+   ```
+   curl -sI https://registry.npmjs.org | head -1
+   ```
+
+3. **Sustituye los marcadores por tus datos.** Tu usuario de Gitea en la VM es `aula`. En las URLs (`http://gitea:3000/aula/<tu-repo>.git`) y en el nombre de la imagen (`localhost:3000/aula/<tu-imagen>`) pon tu usuario y el nombre de tu repositorio.
+
+4. **Qué ya viene preparado.** Dentro de Jenkins está disponible el comando `sonar-scanner`. El servidor de calidad está configurado con el nombre `sonarqube` y la credencial de Gitea se llama `gitea-cred`. Las imágenes `grafana/k6`, `aquasec/trivy` y `node:20-alpine` ya están descargadas.
+
+5. **Pruebas de carga.** El contenedor de tu aplicación necesita un momento para arrancar. Si k6 falla con `connection refused`, añade una espera o un reintento antes de lanzarlo.
+
 ## Tareas
 
 ```
