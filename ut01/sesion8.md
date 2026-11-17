@@ -72,7 +72,12 @@ Se hace primero el ciclo a mano y después se automatiza. Los ejemplos usan el u
 
 ### Paso 1 · Ciclo manual
 
-Token en Gitea: *Configuración → Aplicaciones → Generar token*, con permiso de escritura sobre **package**.
+Crea un token en Gitea. El mismo token servirá después a Jenkins para descargar el código y para subir imágenes.
+
+1. En Gitea, pulsa tu avatar (arriba a la derecha) y entra en **Settings > Applications** (Configuración > Aplicaciones).
+2. En el apartado para generar tokens, escribe un nombre, por ejemplo `jenkins`.
+3. Despliega **Select permissions** y marca **package: Read and Write** y **repository: Read**.
+4. Pulsa **Generate Token** y cópialo ya: solo se muestra una vez.
 
 Publicamos la última versión apta, `v1.3.0`. Su etiqueta de Git ya existe desde la sesión 5, así que no se crea otra; solo se comprueba que está en Gitea:
 
@@ -91,16 +96,71 @@ Anotad el digest que muestra el push: debe coincidir con el del pull.
 
 ### Paso 2 · Preparar Jenkins
 
-1. **Credencial.** *Administrar Jenkins → Credentials*, tipo *Username with password*, ID `gitea-registry`, usuario de Gitea y el token como contraseña.
-2. **Construcción de tags.** En el job multibranch, activar *Discover tags* y añadir las estrategias de construcción *Regular branches* y *Tags* (plugin *Basic Branch Build Strategies*). Sin la estrategia *Tags*, Jenkins descubre los tags pero no los construye.
-3. **Webhook.** Gitea bloquea por defecto los webhooks a direcciones locales. Añadir en `app.ini` y reiniciar Gitea:
+Jenkins necesita tres cosas para publicar solo: el token de Gitea guardado como credencial, un job multibranch que construya también los tags y una forma de enterarse de que hay un tag nuevo.
 
-```
-[webhook]
-ALLOWED_HOST_LIST = private,loopback
-```
+En el laboratorio, Jenkins y Gitea son contenedores de la red `lab5168`. Desde Jenkins, Gitea se llama `http://gitea:3000`, nunca `localhost:3000`: dentro de un contenedor, `localhost` es el propio contenedor.
 
-Si el job usa una fuente Git normal (no la de Gitea), el webhook no dispara el escaneo del job multibranch. Se puede marcar en el job Scan Multibranch Pipeline Triggers \> Periodically if not otherwise run con un intervalo de 1 minuto, o lanzar *Scan Multibranch Pipeline Now* a mano tras crear el tag. Con el valor ALLOWED_HOST_LIST que ya lleva el contenedor de Gitea (guía de instalación, paso 1bis) no hace falta tocar app.ini.
+#### 2.1 · Instalar el plugin de estrategias de construcción
+
+1. **Manage Jenkins → Plugins → Available plugins**.
+2. Busca `Basic Branch Build Strategies`, marca la casilla y pulsa **Install**.
+3. Marca **Restart Jenkins when installation is complete and no jobs are running** y vuelve a iniciar sesión cuando arranque.
+
+Comprueba en **Installed plugins** que aparece. Sin este plugin, Jenkins ve los tags pero no los construye nunca.
+
+#### 2.2 · Guardar el token como credencial
+
+1. **Manage Jenkins → Credentials**.
+2. En la tabla, pulsa **System** y después **Global credentials (unrestricted)**.
+3. Pulsa **Add Credentials** y rellena:
+    - **Kind:** Username with password
+    - **Scope:** Global
+    - **Username:** tu usuario de Gitea (en la VM, `aula`). El nombre, no el correo.
+    - **Password:** el token del paso 1
+    - **ID:** `gitea-registry`, exactamente así: el Jenkinsfile la busca por este nombre
+4. Pulsa **Create**.
+
+No la crees desde tu perfil (tu nombre arriba a la derecha → Credentials): esa credencial es personal y el pipeline no la ve.
+
+#### 2.3 · Crear el job multibranch
+
+Un job *Pipeline* normal no sirve: solo los multibranch construyen tags.
+
+1. **New Item**, nombre `modulo5168-versiones`, tipo **Multibranch Pipeline**, **OK**.
+2. **Branch Sources → Add source → Git**:
+    - **Project Repository:** `http://gitea:3000/aula/<tu-repo>.git` (con `gitea`, no `localhost`)
+    - **Credentials:** `gitea-registry`. Sirve también para el checkout porque el token tiene lectura sobre `repository`.
+3. En **Behaviours** ya viene *Discover branches*. Pulsa **Add → Discover tags**. Con esto Jenkins *ve* los tags.
+4. En **Build strategies** pulsa **Add → Regular branches** y otra vez **Add → Tags**. En *Ignore tags older than* pon `7`, para que no construya tags antiguos como `v1.3.0`, que ya publicaste a mano. Con esto Jenkins *construye* los tags.
+5. **Build Configuration:** *by Jenkinsfile*. En **Script Path**, la ruta del Jenkinsfile dentro del repositorio (por defecto `Jenkinsfile`).
+6. **Scan Multibranch Pipeline Triggers:** marca **Periodically if not otherwise run**, con intervalo **1 minute**.
+7. **Save**.
+
+Ojo con el punto 4: en cuanto añades una estrategia, Jenkins solo construye lo que está en la lista. Si añades *Tags* y no *Regular branches*, las ramas dejan de construirse.
+
+#### 2.4 · Cómo se entera Jenkins de un tag nuevo
+
+El webhook de Gitea del laboratorio (aviso `notifyCommit`, apartado 1bis de la guía) solo dispara jobs normales, no multibranch. Por eso este job escanea el repositorio cada minuto (punto 6 de 2.3): un tag empujado aparece en Jenkins como mucho un minuto después. Si no quieres esperar, pulsa **Scan Multibranch Pipeline Now** en el job.
+
+No hay que tocar el `app.ini` de Gitea: el contenedor ya se creó con `ALLOWED_HOST_LIST` (guía de instalación, paso 1bis).
+
+#### 2.5 · Comprobar la configuración
+
+1. Al guardar, Jenkins hace un primer escaneo. Abre **Scan Multibranch Pipeline Log**: debe terminar en `Finished: SUCCESS` y listar las ramas y los tags encontrados.
+2. En la página del job deben aparecer las pestañas **Branches** y **Tags**. La rama `main` se construye. `v1.3.0` aparece en *Tags* sin construir: es lo esperado, porque es un tag antiguo.
+
+Si el escaneo falla, el problema está en la URL del repositorio o en la credencial (tabla siguiente). La prueba del tag se hace en el paso 3.
+
+#### Errores frecuentes
+
+| Mensaje | Causa | Solución |
+|---|---|---|
+| `Could not find credentials entry with ID 'gitea-registry'` | ID mal escrito, o credencial creada en el perfil del usuario | Crearla en *System → Global credentials* con el ID exacto |
+| `...is of type 'Secret text'...` | Tipo de credencial equivocado | Debe ser *Username with password* |
+| `unauthorized` o `401` en el `docker login` | Token sin escritura en `package`, o correo en vez de usuario | Generar otro token con los permisos del paso 1 y actualizar la credencial |
+| `Connection refused` al escanear | URL del repositorio con `localhost` | Usar `http://gitea:3000/...` |
+| `Authentication failed` al escanear | Usuario o token incorrectos en *Branch Sources* | Revisar la credencial |
+| El tag sale en *Tags* pero no se construye | Falta la estrategia *Tags*, o el tag tiene más de 7 días | Revisar el punto 4 de 2.3 |
 
 ### Paso 3 · Publicación automática
 
