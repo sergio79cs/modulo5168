@@ -243,7 +243,7 @@ pipeline {
             echo "$REG_PASS" | docker login "$REGISTRY" -u "$REG_USER" --password-stdin
 
             # Inmutabilidad: una versión publicada no se reescribe
-            if docker manifest inspect --insecure "$IMAGE:$VERSION" > /dev/null 2>&1; then
+            if docker pull -q "$IMAGE:$VERSION" > /dev/null 2>&1; then
               echo "ERROR: $IMAGE:$VERSION ya existe en el registry. Publica una versión nueva."
               exit 1
             fi
@@ -290,6 +290,7 @@ pipeline {
 
 - `localhost:3000` **en la imagen y** `gitea:3000` **en el checkout.** Con el socket de Docker montado, el `docker push` lo ejecuta el daemon del host, que ve Gitea en `localhost`. El checkout de Git sale del contenedor de Jenkins, que ve Gitea por su nombre en la red Docker. Con Docker-in-Docker habría que ajustarlo.
 - **Docker y HTTP.** Docker acepta registries sin TLS en `localhost`, así que no hace falta tocar `insecure-registries`.
+- **Comprobar con `docker pull`, no con `docker manifest inspect`.** El cliente Docker que ejecuta `docker manifest inspect` está dentro del contenedor de Jenkins, donde `localhost:3000` no es Gitea: nunca encontraría la versión y dejaría sobrescribirla. `docker pull` lo resuelve el daemon del host, igual que el `push`.
 - **Login fallido.** Casi siempre es un `ROOT_URL` de Gitea que no coincide con `http://localhost:3000/`.
 - **Adelanto para Kubernetes.** Con kind o minikube, `localhost` dentro del clúster no es el de tu ordenador: habrá que cargar la imagen en el clúster o apuntar a la IP del host.
 
