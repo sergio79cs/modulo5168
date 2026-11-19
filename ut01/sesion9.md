@@ -23,16 +23,7 @@ Comprueba que tu laboratorio está listo. Si algo falla, revisa la [guía del la
 
 Si trabajas con la máquina virtual del laboratorio, haz esto antes de empezar.
 
-1. **Crea la red `ci`.** En la VM la red común se llama `lab5168`, pero el pipeline de esta sesión usa una red llamada `ci`. Créala y conecta los tres servicios. Si `docker network create` dice que ya existe, ignóralo.
-
-   ```
-   docker network create ci
-   docker network connect ci jenkins
-   docker network connect ci gitea
-   docker network connect ci sonarqube
-   ```
-
-   Dentro de la red `ci` los contenedores se encuentran por su nombre (`gitea:3000`, `sonarqube:9000`), no por `localhost`.
+1. **Red de los contenedores del pipeline.** Los pasos del Jenkinsfile que lanzan contenedores con `docker run` (por ejemplo k6 o Trivy) deben conectarse a la red donde ya están Gitea, Jenkins y SonarQube. En la VM del laboratorio se llama `lab5168`; si usas otro laboratorio, comprueba el nombre con `docker network ls`. Añade `--network lab5168` a esos `docker run`. Dentro de esa red los contenedores se encuentran por su nombre (`gitea:3000`, `sonarqube:9000`), no por `localhost`.
 
 2. **Comprueba que la VM tiene internet.** La construcción de la imagen (`npm ci`) y el análisis de seguridad con Trivy descargan datos de internet. Este comando debe responder `HTTP/2 200`; si no responde, revisa el DNS de la VM en la [guía del laboratorio](../laboratorio/):
 
