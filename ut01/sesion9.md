@@ -42,7 +42,29 @@ Si trabajas con la máquina virtual del laboratorio, haz esto antes de empezar.
 
 3. **Sustituye los marcadores por tus datos.** Tu usuario de Gitea en la VM es `aula`. En las URLs (`http://gitea:3000/aula/<tu-repo>.git`) y en el nombre de la imagen (`localhost:3000/aula/<tu-imagen>`) pon tu usuario y el nombre de tu repositorio.
 
-4. **Qué ya viene preparado.** Dentro de Jenkins está disponible el comando `sonar-scanner`. El servidor de calidad está configurado con el nombre `sonarqube` y la credencial de Gitea se llama `gitea-cred`. Las imágenes `grafana/k6`, `aquasec/trivy` y `node:20-alpine` ya están descargadas.
+4. **Herramientas que usa el pipeline.** Con la VM nueva del laboratorio ya está todo preparado: `sonar-scanner` dentro de Jenkins, el servidor de calidad `sonarqube`, la credencial `gitea-cred` y las imágenes `grafana/k6`, `aquasec/trivy`, `sonarsource/sonar-scanner-cli` y `node:20-alpine`. No tienes que hacer nada más.
+
+   Si usas la VM anterior o tu propio laboratorio, haz esto una vez en la terminal de la VM. Primero descarga las imágenes (necesitan internet):
+
+   ```
+   docker pull grafana/k6
+   docker pull aquasec/trivy
+   docker pull sonarsource/sonar-scanner-cli
+   docker pull node:20-alpine
+   ```
+
+   Después deja disponible `sonar-scanner` dentro de Jenkins y haz que la ruta de los volúmenes de Jenkins exista también en la VM (así los informes de las pruebas llegan a tu espacio de trabajo):
+
+   ```
+   sudo ln -sfn /var/lib/docker/volumes/jenkins_home/_data /var/jenkins_home
+
+   docker exec -i -u root jenkins sh -c 'cat > /usr/local/bin/sonar-scanner && chmod +x /usr/local/bin/sonar-scanner' <<'EOF'
+   #!/bin/sh
+   exec docker run --rm --network lab5168 -e SONAR_HOST_URL -e SONAR_TOKEN="${SONAR_TOKEN:-$SONAR_AUTH_TOKEN}" -v "$PWD:/usr/src" sonarsource/sonar-scanner-cli "$@"
+   EOF
+   ```
+
+   Comprueba que funciona: `docker exec jenkins which sonar-scanner` debe mostrar `/usr/local/bin/sonar-scanner`. Si tu red común no se llama `lab5168`, cambia ese nombre en el script. Comprueba también en Jenkins (Manage Jenkins → System) que el servidor de calidad se llama `sonarqube`, y en Credentials que existe `gitea-cred`.
 
 5. **Pruebas de carga.** El contenedor de tu aplicación necesita un momento para arrancar. Si k6 falla con `connection refused`, añade una espera o un reintento antes de lanzarlo.
 
