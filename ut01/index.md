@@ -50,6 +50,12 @@ A lo largo de la unidad trabajaremos siempre con **la misma aplicación**, una A
 sencilla en Node.js con Express. La irás versionando (v1.0.0, v1.1.0, v1.2.0…),
 así que al final tendrás un historial real con varias versiones que comparar.
 
+## Resumen de la unidad
+
+Si te has perdido con lo que hemos hecho hasta ahora, aquí tienes un resumen de toda la unidad explicado paso a paso, con glosario, chuleta de comandos y preguntas de repaso.
+
+📄 [Ir al resumen de la unidad](resumen.md)
+
 ## Sesiones
 
 ### Sesión 1 · Git avanzado · RA1.a
