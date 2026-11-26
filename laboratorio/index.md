@@ -140,11 +140,15 @@ En Gitea pulsa `+` arriba a la derecha, luego **New Repository**. Llámalo `modu
 
 **Disparo automático con webhook (UT2, sesión 3)**
 
-Se configura cuando Jenkins ya funciona, en el Job (paso 10) y en el repositorio. No hace falta ningún plugin adicional: se usa el aviso `notifyCommit` del plugin Git.
+Se configura cuando Jenkins ya funciona, en el Job (paso 10) y en el repositorio. No hace falta ningún plugin adicional: se usa el aviso `notifyCommit` del plugin Git. Ese aviso exige un token de acceso, que se crea una vez en Jenkins (paso 1).
 
-1. En el Job, en **Build Triggers**, marca **Poll SCM** y deja la programación vacía: así Jenkins solo consulta el repositorio cuando recibe el aviso.
-2. En el repositorio de Gitea: **Settings \> Webhooks \> Add Webhook \> Gitea**. En **Target URL** pon `http://jenkins:8080/git/notifyCommit?url=http://gitea:3000/<tu-usuario>/modulo5168-lab.git`, con el nombre del contenedor y no `localhost`. **HTTP Method**: `GET`. Evento: **Push events**.
-3. Haz un cambio y un push: debe aparecer un build nuevo sin pulsar Build Now. Si no aparece, revisa **Recent Deliveries** en el webhook.
+1. **Crear el token en Jenkins.** Sin él, el aviso recibe un error 401 («An access token is required»).
+   1. En Jenkins: **Administrar Jenkins → Security** (*Configure Global Security*) y baja hasta **Git plugin notifyCommit access tokens**.
+   2. Pulsa **Add new access token**, ponle de nombre `gitea` y pulsa **Generate**.
+   3. Copia el valor que aparece (solo se muestra una vez) y guárdalo en un lugar a mano. Pulsa **Guardar** al final de la página.
+2. En el Job, en **Build Triggers**, marca **Poll SCM** y deja la programación vacía: así Jenkins solo consulta el repositorio cuando recibe el aviso.
+3. En el repositorio de Gitea: **Settings \> Webhooks \> Add Webhook \> Gitea**. En **Target URL** pon `http://jenkins:8080/git/notifyCommit?url=http://gitea:3000/<tu-usuario>/modulo5168-lab.git&token=<el-token>`, con el nombre del contenedor y no `localhost`. **HTTP Method**: `POST` (con `GET`, Gitea añade todo el contenido del evento a la URL y Jenkins la rechaza por demasiado larga, error 414). Evento: **Push events**.
+4. Haz un cambio y un push: debe aparecer un build nuevo sin pulsar Build Now. Si no aparece, revisa **Recent Deliveries** en el webhook: un 401 indica que falta o es incorrecto el token, y un 414 que el método sigue siendo `GET`.
 
 Alternativa si el aviso no llega: en **Poll SCM** escribe `* * * * *`, que consulta el repositorio cada minuto. El disparo ya no es inmediato, pero el flujo es el mismo.
 
