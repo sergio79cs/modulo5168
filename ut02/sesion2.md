@@ -302,7 +302,7 @@ pipeline {
 
 El núcleo del enunciado son los ejercicios 2 y 3. Los ejercicios 1, 4, 5 y 6 son ampliación para afianzar la lectura de resultados y el bloque `post`; pueden eliminarse sin afectar al enunciado.
 
-> **Supuestos:** el alumnado ya tiene Jenkins funcionando y un pipeline básico de la sesión 1; el agente es Linux (`sh`; en Windows, cambiar `sh` por `bat`); el repositorio del laboratorio es un repo Git accesible desde Jenkins (`URL_DEL_LABORATORIO` es un marcador que hay que sustituir).
+> **Supuestos:** el alumnado ya tiene Jenkins funcionando y un pipeline básico de la sesión 1; el agente es Linux (`sh`; en Windows, cambiar `sh` por `bat`); el repositorio del laboratorio es `modulo5168-lab`, que ya está en tu Gitea y al que Jenkins llega por el nombre del contenedor: `http://gitea:3000/aula/modulo5168-lab.git` (`aula` es el usuario de la .ova; si usas otro usuario de Gitea, cámbialo en la URL).
 
 | Ejercicio | Contenido |
 |---|---|
@@ -319,12 +319,10 @@ El núcleo del enunciado son los ejercicios 2 y 3. Los ejercicios 1, 4, 5 y 6 so
 **Objetivo:** que todo el mundo parta del mismo punto.
 
 1. Comprobar que Jenkins está accesible y se puede iniciar sesión.
-2. Crear un job nuevo: **Nuevo Item → Pipeline** con el nombre `ut02-s2-tunombre`.
-3. Elegir cómo se define el pipeline:
-   - **Opción A, Pipeline script**: se escribe en la propia web de Jenkins; es más rápida para empezar.
-   - **Opción B, Pipeline script from SCM**: el Jenkinsfile está en el repo; es lo correcto para Pipeline as Code y la que mejor cuadra con la teoría.
+2. Crear un job nuevo: **Nuevo Item → Pipeline** con el nombre `ut02-s2-tunombre`. Es un job de práctica, aparte del job `modulo5168-demo` que ya tienes del laboratorio: no lo toques.
+3. En la sección **Pipeline**, deja **Definition: Pipeline script**. El script se escribe en la propia web de Jenkins, sin repositorio.
 
-> **Aviso importante:** `checkout scm` **solo funciona con la opción B**. Con la opción A da error porque no hay ningún SCM asociado al job; en ese caso hay que usar `git url: '...'`. Conviene decidir antes qué opción usa la clase para no perder tiempo depurando esto.
+> **Aviso importante:** `checkout scm` **solo funciona en un job *Pipeline script from SCM***, como `modulo5168-demo`, donde Jenkins ya sabe de qué repositorio sale el Jenkinsfile. En el job de hoy no hay SCM asociado, así que el código se descarga con `git url: '...'`. Es la diferencia que vas a comprobar en la pregunta de reflexión del ejercicio 2.
 
 4. Pegar este pipeline base (el de la sesión 1 o uno equivalente):
 
@@ -362,7 +360,7 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                checkout scm
+                git url: 'http://gitea:3000/aula/modulo5168-lab.git', branch: 'main'
             }
         }
         stage('Listar ficheros') {
@@ -375,15 +373,6 @@ pipeline {
 }
 ```
 
-Si el repo del laboratorio es distinto al del Jenkinsfile (o se usa la opción A), cambiar el stage Checkout por:
-
-```groovy
-stage('Checkout') {
-    steps {
-        git url: 'URL_DEL_LABORATORIO', branch: 'main'
-    }
-}
-```
 
 ### Tareas
 
@@ -413,7 +402,7 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                checkout scm
+                git url: 'http://gitea:3000/aula/modulo5168-lab.git', branch: 'main'
             }
         }
         stage('Listar ficheros') {
@@ -525,7 +514,7 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                checkout scm
+                git url: 'http://gitea:3000/aula/modulo5168-lab.git', branch: 'main'
             }
         }
         stage('Listar ficheros') {
