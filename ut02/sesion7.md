@@ -289,7 +289,7 @@ Objetivo: ver que el pipeline depende de credenciales por ID y que, si falta, fa
 
 1.  En `feature/saludo`, cambia en `lab/Jenkinsfile` `credentials('kubeconfig-aula')` por `credentials('kubeconfig-staging')` (un ID que no existe).
 
-2.  Sube el cambio y deja que Jenkins construya la rama. Debe fallar con un error del tipo `Could not find credentials entry with ID 'kubeconfig-staging'`.
+2.  Sube el cambio y deja que Jenkins construya la rama. Falla al instante, antes de ejecutar ninguna etapa: en *Console Output* aparece al final `ERROR: kubeconfig-staging` (el ID que no existe). Según la versión de Jenkins, el texto puede ser `Could not find credentials entry with ID '...'`.
 
 3.  Revierte el cambio (`git revert HEAD`) y súbelo de nuevo. El build vuelve a ponerse en verde.
 
@@ -327,7 +327,7 @@ El log nunca debe mostrar el contenido del kubeconfig ni ningún token.
 | La rama main va a staging                                         | La rama principal se llama master                                  | Cambiar la condición a branch 'master' o renombrar la rama                                         |
 | La rama nueva no aparece en Jenkins                               | Falta el *scan*                                                    | Pulsar *Scan Repository Now* o esperar el escaneo periódico                                        |
 | «Jenkinsfile not found» en el escaneo                             | Script Path mal puesto                                             | Debe ser `lab/Jenkinsfile`                                                                         |
-| Could not find credentials entry with ID '...'                    | ID mal escrito (o es el experimento del paso 5)                    | Revisar el ID letra por letra; el correcto es `kubeconfig-aula`                                    |
+| `ERROR: <id>` o Could not find credentials entry with ID '...'    | ID mal escrito (o es el experimento del paso 5)                    | Revisar el ID letra por letra; el correcto es `kubeconfig-aula`                                    |
 | Error de autenticación al escanear el repositorio                 | Falta la credencial de Gitea en el job                             | Elegir `gitea-cred` en *Branch Sources*                                                            |
 | kubectl: connection refused                                       | Minikube parado                                                    | `minikube status` y, si hace falta, `minikube start`                                               |
 | Los builds quedan en cola y no arrancan                           | Solo hay 2 ejecutores y `main` parado en la aprobación ocupa uno; además se construyen todas las ramas del repositorio | Aprobar o abortar el build de `main`, o abortar builds de ramas que no uses                        |

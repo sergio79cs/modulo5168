@@ -413,7 +413,7 @@ Antes de seguir, vuelve al estado limpio a mano:
 
 ```
 $ kubectl delete configmap demo-limpieza-config -n demo-limpieza
-configmap "demo-limpieza-config" deleted
+configmap "demo-limpieza-config" deleted from demo-limpieza namespace
 ```
 
 ### Paso 2. Añadir la destrucción de objetos intermedios
@@ -466,7 +466,7 @@ Error from server (BadRequest): error when creating "deployment-resolved.yaml": 
 Fallo detectado, destruyendo objetos intermedios creados en esta ejecución...
 + kubectl delete -f deployment-resolved.yaml --ignore-not-found
 + kubectl delete -f configmap-resolved.yaml --ignore-not-found
-configmap "demo-limpieza-config" deleted
+configmap "demo-limpieza-config" deleted from demo-limpieza namespace
 ERROR: Pipeline detenido y objetos intermedios eliminados: script returned exit code 1
 Finished: FAILURE
 ```
@@ -475,7 +475,7 @@ Qué observar en el log:
 
 - El orden de los mensajes: primero se registra qué falló, después se avisa de la limpieza, después se ejecutan los `delete` y por último `error()`.
 - El primer `delete` (el del `Deployment`) **no imprime nada**: el objeto no existía y `--ignore-not-found` lo silencia.
-- El segundo `delete` imprime `configmap "demo-limpieza-config" deleted`: es la limpieza del objeto intermedio.
+- El segundo `delete` imprime `configmap "demo-limpieza-config" deleted from demo-limpieza namespace`: es la limpieza del objeto intermedio.
 - La ejecución sigue terminando en `FAILURE`. Limpiar **no** convierte el fallo en éxito.
 
 Ahora **comprueba el clúster**:
@@ -593,7 +593,7 @@ Fallo detectado, destruyendo objetos intermedios creados en esta ejecución...
 + kubectl delete -f deployment-resolved.yaml --ignore-not-found
 deployment.apps "demo-limpieza" deleted
 + kubectl delete -f configmap-resolved.yaml --ignore-not-found
-configmap "demo-limpieza-config" deleted
+configmap "demo-limpieza-config" deleted from demo-limpieza namespace
 ERROR: Pipeline detenido y objetos intermedios eliminados: script returned exit code 1
 Finished: FAILURE
 ```
@@ -686,7 +686,7 @@ configmap/demo-limpieza-config created
 Error from server (BadRequest): error when creating "deployment-resolved.yaml": ...
 Objetos creados en esta ejecución: [configmap-resolved.yaml]
 + kubectl delete -f configmap-resolved.yaml --ignore-not-found
-configmap "demo-limpieza-config" deleted
+configmap "demo-limpieza-config" deleted from demo-limpieza namespace
 ERROR: Pipeline detenido y eliminados los objetos creados en esta ejecución: [configmap-resolved.yaml]. Causa: script returned exit code 1
 Finished: FAILURE
 ```
