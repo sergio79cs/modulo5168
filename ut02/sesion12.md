@@ -167,6 +167,8 @@ En el job `modulo5168-multibranch`, *Scan Repository Now*. La rama `feature/inte
 
 **Punto de control:** build en verde y `kubectl get deployment modulo5168-app` muestra el Deployment con una réplica.
 
+**Ajuste previo del umbral de rendimiento.** La etapa *Decidir con los resultados* compara la prueba de carga de cada build con la del último build validado y falla si empeora más de un 20 %. En una VM pequeña la medida varía mucho de un build a otro, y puede fallar sin que hayas cambiado nada importante (`FALLO: rendimiento degradado más de un 20 %`). Para que eso no tape lo que vas a practicar, en `lab/Jenkinsfile` busca la llamada a `comparar-rendimiento.sh` (termina en `test-results/carga-anterior.txt 20`), cambia el `20` por `100`, súbelo y espera de nuevo el build en verde. Es el único cambio que se mantiene durante toda la práctica.
+
 ### Fase 1 · Leer y entender el flujo
 
 Abre `lab/Jenkinsfile` y rellena en el documento de evidencias: el nombre de la etapa de validación, de la de Ansible, de la de verificación y de las tres funciones de limpieza. Responde: ¿de dónde sale el valor de `TARGET_ENV` en esta rama y qué lo cambiaría?
@@ -225,7 +227,7 @@ kubectl delete configmap modulo5168-config --ignore-not-found
 kubectl get all,configmap > antes.txt
 ```
 
-2. En `lab/k8s/deployment.yaml`, dentro de `spec.strategy`, cambia `type: RollingUpdate` por `type: Inexistente`. Es un manifiesto inválido: `kubectl apply` lo rechazará.
+2. En `lab/k8s/deployment.yaml`, dentro de `spec.strategy`, cambia `strategy:` (con dos espacios de sangría) por `estrategia:`, sin tocar la línea de debajo. Es un campo que Kubernetes no conoce, así que `kubectl apply` rechaza el manifiesto. No sirve cambiar el valor de `type` por uno inventado: Kubernetes lo acepta y el fallo aparece más tarde, en la verificación.
 3. Súbelo y deja que Jenkins construya la rama. Debe fallar en *Desplegar nueva versión*, después de que Ansible haya creado el ConfigMap.
 4. En el log, localiza `Fallo en la primera instalación: destruyo los objetos creados en esta ejecución`.
 5. Compara con el estado de partida:
@@ -316,6 +318,7 @@ La revisión se hace durante la propia sesión, mesa por mesa, contra la rúbric
 | El build falla antes de lo esperado | Se ha escrito mal el cambio provocado | Mira la etapa roja en *Console Output*; revierte con `git revert HEAD` |
 | Tras la fase 5, el pipeline falla al comprobar Redis | Se ha borrado Redis sin querer | Vuelve a lanzar un build de la rama en `modulo5168-multibranch`: el pipeline lo instala |
 | `diff antes.txt despues.txt` muestra diferencias de edad (`AGE`) | La columna de antigüedad cambia con el tiempo | Compara solo los nombres de objeto, no la edad |
+| `FALLO: rendimiento degradado más de un 20 %` en *Decidir con los resultados* | La prueba de carga varía entre builds en una VM pequeña | Sube el umbral a `100` como se indica en la fase 0 y relanza el build |
 | `error: timed out waiting for the condition` | Los Pods nuevos no están listos (es lo esperado en la fase 4) | Lee los eventos con `kubectl describe pod` |
 
 ---
