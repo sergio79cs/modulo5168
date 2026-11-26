@@ -23,7 +23,7 @@ Al terminar la sesión, el alumnado demuestra que los parámetros recopilados po
 
 **Requisitos previos (de sesiones anteriores)**
 
-- Ansible genera el ConfigMap con `LOG_LEVEL` y `APP_VERSION` (sesión 7).
+- Ansible genera el ConfigMap con `LOG_LEVEL` y `APP_VERSION` (sesiones 5 y 6).
 - Clúster Kubernetes del laboratorio operativo y `kubectl` apuntando a él.
 - Existe `lab/k8s/deployment.yaml` con el Deployment `modulo5168-app`.
 

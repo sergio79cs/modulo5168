@@ -28,7 +28,7 @@ Al terminar la sesión sabrás:
 Necesitas lo mismo que en la sesión 10:
 
 - Tu Jenkins del laboratorio en marcha y con sesión iniciada.
-- `kubectl` accesible desde Jenkins y tu clúster Minikube activo. Comprueba desde la terminal del laboratorio que `kubectl get nodes` muestra el nodo en estado `Ready`.
+- Tu clúster Minikube activo (`kubectl` ya está en la imagen de Jenkins del laboratorio y el acceso al clúster llega por la credencial `kubeconfig-aula`, declarada en el bloque `environment` de cada script). Comprueba desde la terminal del laboratorio que `kubectl get nodes` muestra el nodo en estado `Ready`.
 - Tener a mano el pipeline de la sesión 10 (patrón completo con `try/catch`, `error()` y `apply.log`), porque hoy se amplía.
 
 ## 13.1 Recordatorio
@@ -305,6 +305,10 @@ El `Deployment` usa el `ConfigMap` mediante `envFrom`: es la dependencia que obl
 ```groovy
 pipeline {
     agent any
+    environment {
+        // Credencial del laboratorio: da a kubectl acceso al clúster Minikube
+        KUBECONFIG = credentials('kubeconfig-aula')
+    }
     stages {
         stage('Preparar manifiestos') {
             steps {

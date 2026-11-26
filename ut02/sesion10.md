@@ -374,7 +374,7 @@ Esta demostración la realiza el docente en su Jenkins del laboratorio y el alum
 
 - Jenkins del laboratorio en marcha y con sesión iniciada.
 - Un trabajo nuevo de tipo **Pipeline** llamado `ut02-s10-errores`. En su configuración, en el apartado **Pipeline**, se elige **Pipeline script** (el script se escribe directamente en la interfaz, sin repositorio).
-- Para la parte B, `kubectl` accesible desde Jenkins y un clúster Minikube en marcha. La parte A no necesita Kubernetes.
+- Para la parte B, un clúster Minikube en marcha. `kubectl` ya está en la imagen de Jenkins del laboratorio y el acceso al clúster llega por la credencial `kubeconfig-aula`, que el script de la parte B declara en su bloque `environment`. La parte A no necesita Kubernetes.
 
 En cada versión se sustituye todo el contenido del campo **Script**, se pulsa **Guardar** y después **Construir ahora**. El resultado se estudia en **Console Output** (el log completo) y en la vista de etapas del trabajo.
 
@@ -496,6 +496,10 @@ Sustituye todo el script por este. La primera etapa genera un manifiesto que apu
 ```groovy
 pipeline {
     agent any
+    environment {
+        // Credencial del laboratorio: da a kubectl acceso al clúster Minikube
+        KUBECONFIG = credentials('kubeconfig-aula')
+    }
     stages {
         stage('Preparar manifiesto') {
             steps {
@@ -638,8 +642,8 @@ namespace "demo-errores" deleted
 
 | Síntoma | Causa probable | Qué hacer |
 | --- | --- | --- |
-| `kubectl: not found` (código 127) | Jenkins no tiene `kubectl` instalado | Es un fallo real: el patrón lo recoge y sirve de ejemplo. Para la parte B hace falta el Jenkins del laboratorio con `kubectl` |
-| `The connection to the server ... was refused` | Jenkins no tiene configurado el acceso al clúster | Revisar el `kubeconfig` que usa Jenkins en el laboratorio |
+| `kubectl: not found` (código 127) | El contenedor no es la imagen `jenkins-lab` | Es un fallo real: el patrón lo recoge y sirve de ejemplo. Para la parte B hace falta el Jenkins del laboratorio (`jenkins-lab`) |
+| `The connection to the server ... was refused` | El script no tiene el bloque `environment` con `KUBECONFIG`, o Minikube está parado | Comprobar el bloque `environment { KUBECONFIG = credentials('kubeconfig-aula') }` y `minikube status` |
 | `Scripts not permitted to use method ...` | La sandbox de Groovy bloquea algo del script | No es un error del pipeline: quitar esa instrucción o usar solo las del ejemplo |
 | La etapa `Etapa posterior` también falla | Quedó un `catch` que no detiene el pipeline o un error al copiar | Revisar que `error(...)` es la última instrucción del `catch` |
 | El paso 6 sigue dando error | El espacio de nombres no se ha creado en el clúster que usa Jenkins | Comprobar con `kubectl get namespaces` |

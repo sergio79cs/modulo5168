@@ -402,7 +402,7 @@ No has modificado ni el playbook ni la plantilla. Anota qué ficheros has tocado
 4. ¿Qué ventaja tiene que `vars/*.yml` esté en Git frente a editarlo a mano en el servidor?
 5. Si dos personas ejecutan el playbook a la vez con entornos distintos en nuestro laboratorio, ¿qué ocurre? ¿Por qué no pasaría en una empresa?
 
-**Lo que te llevas.** Un proceso (playbook + plantilla), datos por entorno (`vars/`) y una elección en el momento de desplegar (`-e`). Esa es la base de la sesión 7, donde Jenkins invocará el playbook por nosotros.
+**Lo que te llevas.** Un proceso (playbook + plantilla), datos por entorno (`vars/`) y una elección en el momento de desplegar (`-e`). Esa es la base de las sesiones 7 y 9, donde Jenkins invoca el playbook por nosotros.
 
 ## 4. Entregable y evaluación (RA2.b)
 

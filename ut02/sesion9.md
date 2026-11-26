@@ -18,10 +18,10 @@ En la sesión 8 se verificó a mano que los parámetros llegan al Pod. En esta s
 
 **Requisitos previos**
 
-- Jenkins operativo con acceso a Gitea y un pipeline (job) creado en las sesiones anteriores de la UT02.
-- El agente de Jenkins tiene `ansible-playbook` y `kubectl` instalados y un `kubeconfig` que apunta al clúster del laboratorio.
-- Directorio `lab/ansible` con `inventory.ini` y `playbook.yml` que reciben `target_env` y `app_version`.
-- Deployment `modulo5168-app` y ConfigMap generado por Ansible, como en la sesión 8.
+- El laboratorio de la UT01 en marcha: Jenkins (imagen `jenkins-lab`, que ya incluye `ansible-playbook` y `kubectl`), Gitea con el repositorio `modulo5168-lab` y Minikube.
+- Haber ejecutado al menos una vez con éxito el job `modulo5168-demo` (así existen en el clúster el Deployment `modulo5168-app`, Redis y la imagen `localhost:5000/modulo5168-app:stable`).
+- Directorio `lab/ansible` del repositorio, con `inventory.ini` y `playbook.yml` que reciben `target_env` y `app_version`.
+- La credencial `kubeconfig-aula` de Jenkins, que da acceso al clúster. No hay que configurar nada más.
 
 **Etapas que se integran**
 
@@ -69,8 +69,8 @@ Esqueleto completo que se usará en la práctica:
 pipeline {
     agent any
     parameters {
-        choice(name: 'TARGET_ENV', choices: ['dev', 'pre'], description: 'Entorno destino')
-        string(name: 'IMAGE_TAG', defaultValue: '1.0.0', description: 'Versión de la imagen')
+        choice(name: 'TARGET_ENV', choices: ['staging', 'production'], description: 'Entorno destino')
+        string(name: 'IMAGE_TAG', defaultValue: 'stable', description: 'Versión de la imagen')
     }
     stages {
         stage('Configurar entorno (Ansible)') { /* ... */ }
@@ -111,7 +111,7 @@ Dentro del `-e` de Ansible, las comillas simples (`'target_env=... app_version=.
 Comando de la etapa:
 
 ```bash
-ansible-playbook -i inventory.ini playbook.yml -e 'target_env=dev app_version=1.0.0'
+ansible-playbook -i inventory.ini playbook.yml -e 'target_env=staging app_version=stable'
 ```
 
 - `-i inventory.ini`: inventario de máquinas o destinos.
@@ -167,8 +167,8 @@ En esta sesión, el cambio de `app_version` modifica la imagen del Deployment, a
 
 Para que `kubectl` funcione dentro del pipeline, el proceso de Jenkins necesita credenciales del clúster:
 
-- En el laboratorio basta con que el usuario que ejecuta Jenkins tenga un `~/.kube/config` válido o que la variable `KUBECONFIG` apunte a él.
-- En un entorno real, el `kubeconfig` se guarda como credencial de Jenkins (tipo *Secret file*) y se carga solo durante la etapa con `withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG')]) { ... }`.
+- En el laboratorio, Jenkins recibe el acceso como la credencial `kubeconfig-aula` (*Secret file*). El `Jenkinsfile` la declara en `environment { KUBECONFIG = credentials('kubeconfig-aula') }` y `kubectl` usa esa variable sin más ajustes. No hay ningún `~/.kube/config` que copiar.
+- En un entorno real se hace igual, con una credencial por entorno, que se puede cargar solo durante la etapa con `withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG')]) { ... }`.
 - Nunca se escriben tokens ni contraseñas en el `Jenkinsfile`: queda en el repositorio y en su historial.
 
 El mismo razonamiento se aplica a Ansible si necesita claves SSH o contraseñas: se inyectan como credenciales, no como texto.
@@ -209,23 +209,22 @@ Trabajo individual en la VM del laboratorio. Cada paso indica qué debe verse; s
 
 ### Paso 0 · Comprobar el entorno de Jenkins
 
-Antes de tocar el `Jenkinsfile`, comprobar que el agente de Jenkins dispone de las herramientas. Si Jenkins corre en un contenedor, entrar en él (`docker exec -it <contenedor> bash`) y ejecutar:
+Antes de tocar nada, comprobar que Jenkins dispone de las herramientas. Jenkins corre en el contenedor `jenkins`:
 
 ```bash
-ansible-playbook --version
-kubectl version --client
-kubectl get nodes
+docker exec jenkins ansible-playbook --version
+docker exec jenkins kubectl version --client
 ```
 
-Debe mostrar las dos versiones y los nodos del clúster en `Ready`. Si `kubectl get nodes` falla con un error de conexión, el `kubeconfig` no está disponible para el usuario de Jenkins (ver errores frecuentes).
+Deben mostrar las dos versiones. Si alguna da `command not found`, avisa al profesor: significa que el contenedor no es la imagen `jenkins-lab`. El acceso al clúster no se prueba aquí, porque Jenkins lo recibe como credencial dentro del pipeline (se verá en el paso 5).
 
 ### Paso 1 · Probar a mano lo que hará el pipeline
 
-Primero se ejecutan los dos comandos fuera de Jenkins, desde la carpeta del repositorio. Así, si luego falla el pipeline, se sabe que el problema es de Jenkins y no del playbook.
+Primero se ejecutan los dos comandos fuera de Jenkins, desde la carpeta del repositorio clonado en la VM (Ansible está en el entorno virtual `~/venv-ansible`: actívalo con `source ~/venv-ansible/bin/activate`). Así, si luego falla el pipeline, se sabe que el problema es de Jenkins y no del playbook.
 
 ```bash
 cd lab/ansible
-ansible-playbook -i inventory.ini playbook.yml -e 'target_env=dev app_version=1.0.0'
+ansible-playbook -i inventory.ini playbook.yml -e 'target_env=staging app_version=stable'
 cd ../..
 kubectl rollout status deployment/modulo5168-app --timeout=120s
 echo "Código de salida: $?"
@@ -233,22 +232,41 @@ echo "Código de salida: $?"
 
 Salida esperada: `PLAY RECAP` con `failed=0`, el mensaje `deployment "modulo5168-app" successfully rolled out` y `Código de salida: 0`. Repetir el `ansible-playbook` una segunda vez y observar que `changed` baja a 0 (idempotencia).
 
-### Paso 2 · Revisar el Jenkinsfile de partida
+### Paso 2 · Crear el Jenkinsfile y el job
 
-Abrir el `Jenkinsfile` en el repositorio de Gitea (o en la copia local) y localizar las etapas anteriores de la unidad. Comprobar que existen los parámetros `TARGET_ENV` e `IMAGE_TAG`; si no, añadirlos:
+Se trabaja en un Jenkinsfile propio, aparte del `lab/Jenkinsfile` del laboratorio. En el repositorio clonado:
+
+```bash
+mkdir ut02-s9
+```
+
+Crea `ut02-s9/Jenkinsfile` con este esqueleto (las etapas de Ansible, despliegue y verificación se añaden en los pasos siguientes):
 
 ```groovy
-parameters {
-    choice(name: 'TARGET_ENV', choices: ['dev', 'pre'], description: 'Entorno destino')
-    string(name: 'IMAGE_TAG', defaultValue: '1.0.0', description: 'Versión de la imagen')
+pipeline {
+    agent any
+    parameters {
+        choice(name: 'TARGET_ENV', choices: ['staging', 'production'], description: 'Entorno destino')
+        string(name: 'IMAGE_TAG', defaultValue: 'stable', description: 'Etiqueta de la imagen en el registry')
+    }
+    environment {
+        KUBECONFIG = credentials('kubeconfig-aula')
+    }
+    stages {
+        stage('Checkout') {
+            steps { checkout scm }
+        }
+    }
 }
 ```
 
-Si `IMAGE_TAG` ya se calcula en otra etapa (por ejemplo, a partir de `BUILD_NUMBER`), se mantiene esa definición y no se duplica.
+Súbelo a Gitea (`git add ut02-s9/Jenkinsfile`, `git commit`, `git push`). Después, en Jenkins, crea un job **Pipeline** llamado `ut02-s9-tunombre` con **Definition: Pipeline script from SCM**, Git, URL `http://gitea:3000/aula/modulo5168-lab.git`, credencial `gitea-cred`, rama `*/main` y **Script Path** `ut02-s9/Jenkinsfile`. Lánzalo una vez: la primera ejecución sirve para que Jenkins registre los parámetros, y a partir de ahí aparece *Build with Parameters*.
 
-### Paso 3 · Añadir la etapa de Ansible
+La línea `KUBECONFIG = credentials('kubeconfig-aula')` es la que da acceso al clúster a todos los `kubectl` del pipeline.
 
-Insertar tras las etapas existentes:
+### Paso 3 · Añadir la etapa de Ansible y el despliegue
+
+Insertar después de *Checkout*:
 
 ```groovy
 stage('Configurar entorno (Ansible)') {
@@ -258,11 +276,21 @@ stage('Configurar entorno (Ansible)') {
         }
     }
 }
+stage('Desplegar') {
+    steps {
+        sh '''
+            bash lab/k8s/render.sh "localhost:5000/modulo5168-app:$IMAGE_TAG" 1 > deployment-resolved.yaml
+            kubectl apply -f deployment-resolved.yaml
+        '''
+    }
+}
 ```
+
+La etapa *Desplegar* es la que cambia la imagen del Deployment: Ansible solo genera el ConfigMap con los parámetros del entorno. El script `render.sh` sustituye los marcadores del manifiesto del laboratorio.
 
 Preguntas guiadas para el alumnado, antes de continuar:
 
-1. ¿Por qué el comando va entre comillas dobles y el `-e` entre simples?
+1. ¿Por qué el comando de Ansible va entre comillas dobles y el `-e` entre simples?
 2. ¿Qué ocurriría si se quitara `dir('lab/ansible')`?
 3. ¿Qué etapa se ejecutará si esta falla?
 
@@ -296,7 +324,7 @@ post {
 Guardar el fichero y subirlo a Gitea:
 
 ```bash
-git add Jenkinsfile
+git add ut02-s9/Jenkinsfile
 git commit -m "UT02: etapas de Ansible y verificación del despliegue"
 git push
 ```
@@ -304,19 +332,19 @@ git push
 ### Paso 5 · Ejecutar el pipeline en verde
 
 1. En Jenkins, abrir el pipeline y pulsar *Build with Parameters*.
-2. Elegir `TARGET_ENV=dev` e `IMAGE_TAG=1.0.0` y lanzar el build.
+2. Elegir `TARGET_ENV=staging` e `IMAGE_TAG=stable` y lanzar el build.
 3. Abrir *Stage View* y esperar a que ambas etapas pasen a verde.
 4. Abrir *Console Output* y localizar: la línea `+ ansible-playbook ...`, el `PLAY RECAP` y la línea `successfully rolled out`.
 5. Comprobar en el clúster, como en la sesión 8: `kubectl get pods` y `kubectl exec deploy/modulo5168-app -- env | grep APP_VERSION`.
 
-Este es el estado que se entrega. Antes de capturar, comprobar que se ven los nombres de las dos etapas y el número del build.
+Este es el estado que se entrega. Si el build falla al descargar la imagen `stable`, es que el job `modulo5168-demo` aún no ha terminado con éxito ninguna vez: ejecútalo primero. Antes de capturar, comprobar que se ven los nombres de las dos etapas y el número del build.
 
 ### Paso 6 · Provocar un fallo de despliegue
 
 Un pipeline que nunca ha fallado no demuestra que verifique algo. Se fuerza un error con una versión de imagen que no existe:
 
 1. Lanzar *Build with Parameters* con `IMAGE_TAG=9.9.9`.
-2. Observar que la etapa de Ansible puede pasar a verde (el playbook solo actualiza el Deployment) y que **la de verificación se queda esperando hasta el timeout** y se pone en rojo.
+2. Observar que las etapas de Ansible y *Desplegar* pasan a verde (`kubectl apply` solo registra el cambio) y que **la de verificación se queda esperando hasta el timeout** y se pone en rojo.
 3. En *Console Output*, localizar la línea de error de `rollout status` y la salida del bloque `post { failure }`.
 4. En el clúster, ver el estado del Pod nuevo: `kubectl get pods`. Aparecerá `ErrImagePull` o `ImagePullBackOff`.
 5. Ver la causa exacta: `kubectl describe pod <nombre-del-pod-nuevo>` y leer *Events*.
@@ -328,7 +356,7 @@ Conclusión para comentar en voz alta: la verificación no la hace Ansible; la h
 
 1. Anotar el motivo del fallo (imagen o etiqueta inexistente).
 2. Dejar el clúster limpio: `kubectl rollout undo deployment/modulo5168-app` y esperar con `kubectl rollout status`.
-3. Lanzar de nuevo el pipeline con `IMAGE_TAG=1.0.0` y comprobar que vuelve a verde.
+3. Lanzar de nuevo el pipeline con `IMAGE_TAG=stable` y comprobar que vuelve a verde.
 4. Revisar el historial: `kubectl rollout history deployment/modulo5168-app` muestra las revisiones creadas.
 
 En Jenkins, el build rojo permanece en el historial junto al verde: es la evidencia del fallo detectado y de la corrección.
@@ -342,23 +370,23 @@ La captura debe mostrar la vista del pipeline con las dos etapas, *Configurar en
 - Añadir una tercera etapa que repita la verificación de la sesión 8 de forma automática, fallando si el valor no coincide: `sh "kubectl exec deploy/modulo5168-app -- env | grep APP_VERSION=${IMAGE_TAG}"`.
 - Añadir `ansible-playbook ... --syntax-check` como etapa previa barata, para detectar errores de sintaxis antes de tocar el clúster.
 - Hacer que el bloque `post { failure }` ejecute `kubectl rollout undo` automáticamente y comentar ventajas e inconvenientes.
-- Cambiar `TARGET_ENV` a `pre` y comprobar qué parámetros del playbook cambian.
+- Cambiar `TARGET_ENV` a `production` y comprobar con `kubectl get configmap modulo5168-config -o jsonpath='{.data}'` qué parámetros cambian (nivel de log y réplicas).
 
 ## Errores frecuentes
 
 | Síntoma | Causa probable | Solución |
 | --- | --- | --- |
-| `ansible-playbook: command not found` | Ansible no está instalado en el agente de Jenkins | Instalarlo en la imagen o máquina del agente y reiniciar Jenkins |
-| `kubectl: command not found` | `kubectl` no está en el `PATH` del agente | Instalarlo o usar la ruta completa en el `sh` |
-| `The connection to the server localhost:8080 was refused` | Jenkins no encuentra el `kubeconfig` | Copiar el `kubeconfig` al usuario de Jenkins o definir `KUBECONFIG` |
+| `ansible-playbook: command not found` | El contenedor de Jenkins no es la imagen `jenkins-lab` | Avisar al profesor; no se instala nada a mano |
+| `kubectl: command not found` | El contenedor de Jenkins no es la imagen `jenkins-lab` | Avisar al profesor |
+| `The connection to the server localhost:8080 was refused` | Falta `KUBECONFIG` en el pipeline | Comprobar que el Jenkinsfile tiene `environment { KUBECONFIG = credentials('kubeconfig-aula') }` |
 | `Could not match supplied host pattern` o `inventory ... not found` | El `sh` no se ejecuta en `lab/ansible` o el inventario no existe | Revisar `dir('lab/ansible')` y el nombre de `inventory.ini` |
 | `target_env` o `app_version` aparecen vacías | El parámetro no existe o se llama distinto | Revisar el bloque `parameters` y los nombres en `-e` |
 | `-e` interpretado como varios argumentos | Faltan las comillas simples alrededor de las variables | `-e 'target_env=... app_version=...'` |
 | Etapa de verificación en verde con una imagen errónea | El Deployment no cambió (no hubo rollout) o falta el `--timeout` | Comprobar que el playbook actualiza el Deployment y que se usa `rollout status` |
 | `rollout status` espera sin terminar | Pods en `Pending`, `ImagePullBackOff` o sin *Ready*, y sin `--timeout` | Añadir `--timeout=120s` y revisar los eventos del Pod |
 | `error: timed out waiting for the condition` | Se alcanzó el timeout porque el Pod no llega a *Ready* | `kubectl describe pod` y corregir la causa; después `rollout undo` si es necesario |
-| `Permission denied` al ejecutar `kubectl` o `ansible` | El usuario de Jenkins no tiene permisos sobre el `kubeconfig` o las claves | Ajustar permisos del fichero y propietario |
-| El pipeline no arranca tras el `git push` | El job no está enlazado al repositorio de Gitea o no se ha configurado el disparador | Revisar el origen del `Jenkinsfile` en el job y lanzar el build manualmente |
+| `Could not find credentials entry with ID` | ID de la credencial mal escrito | Debe ser `kubeconfig-aula` |
+| El pipeline no arranca tras el `git push` | Este job no tiene **Poll SCM** (vacío) marcado, que es lo que usa el webhook de la sesión 3 | Marcarlo, o lanzar el build manualmente |
 | `groovy.lang.MissingPropertyException: No such property: IMAGE_TAG` | El parámetro no está definido en `parameters` ni en `environment` | Definirlo y volver a lanzar; la primera ejecución tras cambiar `parameters` puede requerir un build previo para registrarlos |
 
 ## Entregable y evaluación

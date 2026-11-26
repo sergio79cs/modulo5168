@@ -258,12 +258,24 @@ El endpoint `/git/notifyCommit` viene con el plugin Git, que Jenkins ya tiene. L
 
 ### Paso 4. Revisar o crear el webhook en Gitea
 
-1. En el repositorio: **Configuración → Webhooks**. Si ya existe uno que apunta a Jenkins, comprueba que su URL coincide con la de abajo y salta al punto 6. Si no, **Añadir webhook → Gitea**.
-2. **URL de destino:** `http://jenkins:8080/git/notifyCommit?url=http://gitea:3000/aula/modulo5168-lab.git`
-3. **Método:** GET. **Eventos que lo activan:** solo *Push events*. Filtro de rama: `main`.
-4. Marca **Activo** y guarda.
-5. Pulsa **Probar entrega** (*Test Delivery*).
-6. Abre la entrega en **Recent Deliveries**: debe mostrar respuesta con código 200.
+**Qué es lo que vas a crear.** Un webhook es una regla guardada en Gitea que dice: «cuando ocurra este evento en este repositorio, haz esta petición HTTP a esta dirección». Aquí el evento es un *push* y la petición es una llamada a Jenkins. Jenkins recibe el aviso, mira si algún Job usa ese repositorio con **Poll SCM** activado y, si lo encuentra, lanza un build. El webhook no envía el código: solo avisa de que hay algo nuevo.
+
+**Dónde se crea.** En Gitea, dentro del repositorio `modulo5168-lab`: **Configuración → Webhooks**. Si ya hay uno que apunta a Jenkins, comprueba que su URL coincide con la del campo siguiente y pasa al punto 6. Si no, pulsa **Añadir webhook → Gitea** y rellena los campos así:
+
+| Campo | Valor | Para qué sirve |
+|---|---|---|
+| URL de destino | `http://jenkins:8080/git/notifyCommit?url=http://gitea:3000/aula/modulo5168-lab.git` | A quién se avisa. `jenkins` es el nombre del contenedor en la red Docker. `/git/notifyCommit` es el punto de entrada del plugin Git de Jenkins, y el parámetro `url` indica de qué repositorio es el aviso. **Tiene que ser idéntico a la Repository URL del Job**, carácter por carácter. |
+| Método HTTP | `GET` | `notifyCommit` se llama con GET. No hay cuerpo JSON ni content type que configurar. |
+| Evento | Solo *Push events* | Qué hace saltar el aviso. Con «Eventos personalizados» se puede afinar, pero no hace falta. |
+| Filtro de rama | `main` | Solo los push a esa rama disparan el aviso. |
+| Secret | Vacío | En producción se usaría para firmar el mensaje. En el laboratorio no hace falta, porque la red Docker es privada. |
+| Activo | Marcado | Un webhook desmarcado existe pero no envía nada. |
+
+Después de guardar:
+
+1. Entra en el webhook que acabas de crear y pulsa **Probar entrega** (*Test Delivery*). Gitea envía una petición de prueba.
+2. Baja a **Recent Deliveries** y abre la entrega. Verás la petición que salió y la respuesta de Jenkins. Debe ser **código 200**.
+3. Un 200 significa que Jenkins recibió el aviso, no que haya lanzado un build: eso depende de que el Job tenga **Poll SCM** marcado y la misma URL de repositorio. Es el primer sitio donde mirar si luego no se dispara nada.
 
 ### Paso 5. Provocar el disparo con un push
 

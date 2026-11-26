@@ -9,7 +9,7 @@ UT02, sesión 7 del módulo 5168: el mismo Jenkinsfile despliega en staging desd
 | Dato                   | Detalle                                                                                            |
 |------------------------|----------------------------------------------------------------------------------------------------|
 | Criterio de evaluación | RA2.b (continuación de la sesión anterior); redacción oficial según tu programación                |
-| Lugar y equipo         | Aula, VM de VirtualBox (.ova) de cada alumno con Docker, Gitea, Jenkins y Kubernetes               |
+| Lugar y equipo         | Aula, VM de VirtualBox (.ova) de cada alumno con Docker, Gitea, Jenkins y Minikube ya montados     |
 | Entregable             | Capturas y Jenkinsfile en el repositorio de Gitea del alumno, más un breve cuestionario en Aules   |
 
 ### Objetivos de aprendizaje
@@ -18,9 +18,9 @@ Al terminar la sesión, el alumnado será capaz de:
 
 1.  Explicar por qué staging y production necesitan credenciales y parámetros distintos.
 
-2.  Crear en Jenkins credenciales de tipo *Secret file* (kubeconfig) con un ID que identifique el entorno.
+2.  Reconocer las credenciales del laboratorio en Jenkins (tipo y ID) y explicar cómo las recibe el pipeline sin exponerlas.
 
-3.  Seleccionar en el Jenkinsfile el entorno según la rama (staging o production) y cargar la credencial correspondiente.
+3.  Comprobar cómo el Jenkinsfile del laboratorio elige el entorno según la rama (staging o production) y qué parámetros cambia en cada uno.
 
 4.  Comprobar con dos ejecuciones (rama de feature y main) que cada una usa los parámetros de su entorno.
 
@@ -28,21 +28,21 @@ Al terminar la sesión, el alumnado será capaz de:
 
 ### Requisitos previos
 
-- Jenkins operativo en la VM, con los plugins **Pipeline**, **Credentials Binding** y el de **Gitea** (o Git) para el *branch source*.
+- El laboratorio de la UT01 en marcha: Gitea con el repositorio `modulo5168-lab`, Jenkins (imagen `jenkins-lab`, con `kubectl` y `ansible-playbook`) y Minikube.
 
-- Un job de tipo **Multibranch Pipeline** apuntando al repositorio de Gitea. Es imprescindible: la condición when { branch 'main' } solo funciona en este tipo de job, porque en un Pipeline simple la variable BRANCH_NAME no existe.
+- En Jenkins ya existen las credenciales `kubeconfig-aula` (*Secret file*), `registry-credentials` y `gitea-cred`. En esta sesión no se crean credenciales nuevas: se estudian las que hay.
 
-- Acceso desde Jenkins al clúster de Kubernetes de la VM (kubectl instalado en el agente o ejecución dentro de un contenedor que lo incluya).
+- El `lab/Jenkinsfile` del repositorio ya contiene la selección de entorno y la configuración con Ansible (sesiones 5 y 6). Hoy se ve funcionar.
 
-- Una aplicación sencilla ya desplegable (la de sesiones anteriores) con su manifiesto en k8s/.
+- El job **Multibranch Pipeline** se crea en la práctica. Es imprescindible: la condición `when { branch 'main' }` solo funciona en este tipo de job, porque en un Pipeline simple la variable `BRANCH_NAME` no existe.
 
 ### Preparación del profesor (antes de clase)
 
-- Comprobar que el repositorio de ejemplo tiene dos ramas: main y feature/saludo (o similar), y que el job Multibranch las detecta con *Scan Repository Now*.
+- Comprobar que Minikube está arrancado en alguna VM de muestra (`minikube status`) y que el job `modulo5168-demo` construye con éxito.
 
-- Tener a mano el script prep-entornos.sh (se detalla en la práctica) para que los 10 primeros minutos no se pierdan en teclear comandos de Kubernetes.
+- Comprobar que `lab/ansible/vars/staging.yml` y `production.yml` siguen con valores distintos (réplicas y nivel de log), porque son lo que el alumnado va a observar.
 
-- Probar la sesión completa en una VM limpia: el tiempo real de la práctica depende de que el clúster responda con fluidez.
+- Tener presente que en el laboratorio staging y production comparten el mismo clúster y el mismo espacio de nombres: se distinguen por la configuración, no por el destino. La práctica lo hace notar en el paso 5.
 
 ## Teoría ampliada
 
@@ -160,6 +160,8 @@ Puntos a explicar sobre este código:
 
 - La etapa Seleccionar entorno se omite (aparece en gris) en las ramas que no son main.
 
+> **En el laboratorio:** solo existe una credencial, `kubeconfig-aula`, y el Jenkinsfile la carga con `credentials('kubeconfig-aula')` (forma 1). Staging y production comparten clúster, así que lo que cambia entre ellos son los parámetros que genera Ansible. El código de arriba muestra el caso real de una empresa, con una credencial por entorno.
+
 Variante equivalente y más corta, para comentar al final:
 
 ```groovy
@@ -182,285 +184,153 @@ Ambas hacen lo mismo. La primera muestra con claridad el uso de when; la segunda
 
 ## Práctica guiada
 
-El alumnado termina con un solo Jenkinsfile que despliega en staging desde una rama de feature y en production desde main, cada vez con su propio kubeconfig.
+El alumnado crea el job Multibranch, observa cómo el mismo `lab/Jenkinsfile` despliega en staging desde una rama de feature y en production desde `main`, y comprueba qué cambia en cada caso.
 
-| Minutos | Paso                                        | Resultado                                              |
-|---------|---------------------------------------------|--------------------------------------------------------|
-| 0–10    | 0\. Preparar los dos entornos en Kubernetes | Dos namespaces y dos kubeconfig con permisos distintos |
-| 10–25   | 1\. Crear las credenciales en Jenkins       | kubeconfig-staging y kubeconfig-production             |
-| 25–35   | 2\. Preparar el repositorio                 | Manifiesto en k8s/ y rama de feature                   |
-| 35–50   | 3\. Escribir el Jenkinsfile                 | Pipeline que elige entorno y credencial                |
-| 50–65   | 4\. Probar en feature y en main             | Un despliegue en cada namespace                        |
-| 65–70   | 5\. Experimento de aislamiento              | Prueba de que la credencial protege producción         |
+| Paso | Qué se hace                                   | Resultado                                              |
+|------|-----------------------------------------------|--------------------------------------------------------|
+| 0    | Mirar cómo está montado el laboratorio        | Se identifican los entornos y las credenciales         |
+| 1    | Explorar las credenciales de Jenkins          | Se sabe qué hay y cómo las usa el pipeline             |
+| 2    | Crear el job Multibranch                      | Jenkins detecta las ramas del repositorio              |
+| 3    | Rama de feature hacia staging                 | ConfigMap con los parámetros de staging                |
+| 4    | Rama main hacia production, con aprobación    | ConfigMap con los parámetros de production             |
+| 5    | Experimento: credencial inexistente           | El pipeline falla antes de tocar el clúster            |
 
-### Paso 0 · Preparar los entornos en Kubernetes
+### Paso 0 · Mirar cómo está montado el laboratorio
 
-El profesor entrega el script prep-entornos.sh; el alumnado lo ejecuta y después comprueba qué ha creado. Genera, para cada entorno, un namespace, una cuenta de servicio jenkins-deployer con permisos únicamente sobre ese namespace y un fichero kubeconfig que usa el *token* de esa cuenta.
-
-```bash
-#!/usr/bin/env bash
-# Uso: ./prep-entornos.sh https://DIRECCION-DEL-API:6443
-# La dirección debe ser alcanzable desde Jenkins (no vale 127.0.0.1 si Jenkins corre en un contenedor).
-set -euo pipefail
-SERVER="${1:?indica la URL del API server}"
-CA=$(kubectl config view --raw --minify -o jsonpath='{.clusters[0].cluster.certificate-authority-data}')
-
-for ENTORNO in staging production; do
-  kubectl create namespace "$ENTORNO" --dry-run=client -o yaml | kubectl apply -f -
-  kubectl -n "$ENTORNO" create serviceaccount jenkins-deployer --dry-run=client -o yaml | kubectl apply -f -
-  kubectl -n "$ENTORNO" create role deployer \
-      --verb=get,list,watch,create,update,patch,delete \
-      --resource=deployments.apps,services,configmaps,pods --dry-run=client -o yaml | kubectl apply -f -
-  kubectl -n "$ENTORNO" create rolebinding deployer --role=deployer \
-      --serviceaccount="$ENTORNO:jenkins-deployer" --dry-run=client -o yaml | kubectl apply -f -
-
-  TOKEN=$(kubectl -n "$ENTORNO" create token jenkins-deployer --duration=720h)
-  cat > "kubeconfig-$ENTORNO" <<EOF
-apiVersion: v1
-kind: Config
-clusters:
-- name: laboratorio
-  cluster:
-    server: $SERVER
-    certificate-authority-data: $CA
-users:
-- name: jenkins-deployer-$ENTORNO
-  user:
-    token: $TOKEN
-contexts:
-- name: $ENTORNO
-  context:
-    cluster: laboratorio
-    user: jenkins-deployer-$ENTORNO
-    namespace: $ENTORNO
-current-context: $ENTORNO
-EOF
-  echo "Creado kubeconfig-$ENTORNO"
-done
-```
-
-**Comprobación obligatoria** antes de seguir. Cada credencial debe funcionar en su entorno y ser rechazada en el otro:
+No hay nada que instalar. Desde el repositorio clonado en la VM (si no lo tienes: `git clone http://localhost:3000/aula/modulo5168-lab.git`) mira los dos sitios donde se decide el entorno:
 
 ```bash
-kubectl --kubeconfig kubeconfig-staging -n staging get pods        # correcto (lista vacía)
-kubectl --kubeconfig kubeconfig-staging -n production get pods     # Error: Forbidden
+cd modulo5168-lab
+grep -n -A8 "Seleccionar entorno" lab/Jenkinsfile
+cat lab/ansible/vars/staging.yml lab/ansible/vars/production.yml
 ```
 
-Si la segunda orden devuelve Forbidden, la separación de permisos funciona. Esta comprobación es la base de todo lo que sigue.
+Anota qué hace la etapa *Seleccionar entorno* y en qué se diferencian los dos ficheros de variables. Es lo único que cambia entre entornos: la imagen y el código son los mismos.
 
-> Plan B si Kubernetes da problemas de red o de certificados: usar el mismo kubeconfig de administrador copiado dos veces y distinguir los entornos solo por el namespace. La práctica de Jenkins funciona igual, pero se pierde el experimento de aislamiento del paso 5.
+### Paso 1 · Explorar las credenciales de Jenkins
 
-### Paso 1 · Crear las credenciales en Jenkins
+1.  *Manage Jenkins → Credentials → System → Global credentials (unrestricted)*.
 
-Hay que repetir el proceso dos veces, una por entorno:
+2.  Localiza `kubeconfig-aula`, `registry-credentials` y `gitea-cred`. Apunta el **Kind** de cada una.
 
-1.  *Manage Jenkins → Credentials → System → Global credentials (unrestricted) → Add Credentials*.
+3.  Abre `kubeconfig-aula` y pulsa *Update*: Jenkins muestra el nombre del fichero, nunca su contenido. Sal sin guardar.
 
-2.  **Kind**: Secret file.
+4.  En `lab/Jenkinsfile` busca dónde se usan: `KUBECONFIG = credentials('kubeconfig-aula')` en `environment` y `withCredentials([usernamePassword(...)])` en la etapa de push.
 
-3.  **File**: seleccionar kubeconfig-staging (después, kubeconfig-production).
+Pregunta para el cuaderno: ¿por qué el Jenkinsfile, que está en Gitea y lo ve cualquiera, no contiene ningún secreto?
 
-4.  **ID**: kubeconfig-staging (después, kubeconfig-production). Debe escribirse exactamente igual en el Jenkinsfile.
+### Paso 2 · Crear el job Multibranch
 
-5.  **Description**: "Acceso al namespace staging" (después, "Acceso al namespace production").
+1.  **New Item**, nombre `modulo5168-multibranch`, tipo **Multibranch Pipeline**. Si el job ya existe en tu Jenkins, ábrelo y revisa que coincide con los puntos siguientes.
 
-6.  Guardar con *Create*.
+2.  En **Branch Sources** elige **Git**, URL `http://gitea:3000/aula/modulo5168-lab.git` y la credencial `gitea-cred`.
 
-Cuando estén creadas, borrar de la VM los dos ficheros kubeconfig o dejarlos fuera de cualquier repositorio: contienen tokens válidos. Jenkins ya guarda su propia copia cifrada.
+3.  En **Build Configuration**, **Script Path**: `lab/Jenkinsfile`.
 
-### Paso 2 · Preparar el repositorio
+4.  En **Scan Multibranch Pipeline Triggers** marca **Periodically if not otherwise run**, con intervalo de 1 minuto.
 
-En el repositorio de Gitea, rama main, comprobar que existe k8s/web.yaml. Si el alumnado no conserva uno de sesiones anteriores, sirve este:
+5.  **Save**. Jenkins escanea el repositorio y crea un job por cada rama que tenga Jenkinsfile.
 
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: web
-spec:
-  replicas: 1
-  selector:
-    matchLabels: {app: web}
-  template:
-    metadata:
-      labels: {app: web}
-    spec:
-      containers:
-      - name: web
-        image: nginx:alpine
-        ports:
-        - containerPort: 80
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: web
-spec:
-  selector: {app: web}
-  ports:
-  - port: 80
-```
+El webhook de la sesión 3 no dispara este tipo de job; por eso se usa el escaneo periódico (o el botón *Scan Repository Now*).
 
-El manifiesto **no incluye namespace**: lo pone el pipeline con -n. Así el mismo fichero sirve para los dos entornos.
-
-Después, crear la rama de trabajo y subirla:
+Crea ahora la rama de trabajo y súbela:
 
 ```bash
 git switch -c feature/saludo
 git push -u origin feature/saludo
 ```
 
-En el job Multibranch de Jenkins, pulsar *Scan Repository Now* para que detecte las dos ramas (main y feature/saludo). Todavía no hay Jenkinsfile con esta lógica, así que no se ejecutará nada útil.
+Pulsa *Scan Repository Now*. Jenkins construye las ramas que descubre: `feature/saludo` avanza hasta el final, y `main` se queda detenida en *Aprobación de despliegue a producción*. **No la apruebes todavía**: la usarás en el paso 4.
 
-### Paso 3 · Escribir el Jenkinsfile
+### Paso 3 · Rama de feature hacia staging
 
-Partiendo del fragmento de la teoría, el alumnado completa el fichero. Además del entorno, el pipeline recoge un segundo parámetro propio de cada uno (número de réplicas), para que se vea que cambian *parámetros* y no solo el destino:
+1.  Abre el build de `feature/saludo` y entra en *Console Output*. Busca la línea `Entorno de destino: staging`.
 
-```groovy
-pipeline {
-    agent any
-    environment {
-        TARGET_ENV = "staging"      // valores por defecto: los del entorno menos peligroso
-        REPLICAS   = "1"
-    }
-    stages {
-        stage('Seleccionar entorno') {
-            when { branch 'main' }
-            steps {
-                script {
-                    env.TARGET_ENV = "production"
-                    env.REPLICAS   = "2"
-                }
-            }
-        }
-        stage('Mostrar contexto') {
-            steps {
-                echo "Rama: ${env.BRANCH_NAME} -> entorno: ${env.TARGET_ENV} (réplicas: ${env.REPLICAS})"
-            }
-        }
-        stage('Desplegar y verificar') {
-            steps {
-                withCredentials([file(credentialsId: "kubeconfig-${env.TARGET_ENV}", variable: 'KUBECONFIG')]) {
-                    sh '''
-                        kubectl apply -f k8s/ -n "$TARGET_ENV"
-                        kubectl scale deployment/web --replicas="$REPLICAS" -n "$TARGET_ENV"
-                        kubectl set env deployment/web ENTORNO="$TARGET_ENV" -n "$TARGET_ENV"
-                        kubectl rollout status deployment/web -n "$TARGET_ENV" --timeout=120s
-                        kubectl get deployment web -n "$TARGET_ENV"
-                    '''
-                }
-            }
-        }
-    }
-}
-```
+2.  En la vista de etapas, *Aprobación de despliegue a producción* aparece omitida (en gris), porque la rama no es `main`.
 
-Lo que debe quedar claro al escribirlo:
-
-- sh lleva comillas simples triples: el shell, y no Groovy, lee las variables. Así ningún secreto se interpola en el texto del comando.
-
-- kubectl usa la variable KUBECONFIG que crea withCredentials; no hay que pasar --kubeconfig.
-
-- credentialsId sí usa interpolación de Groovy (comillas dobles), porque el ID se calcula con TARGET_ENV.
-
-Guardar el fichero en la rama feature/saludo y subirlo:
+3.  Cuando el build termine, comprueba los parámetros que Ansible ha dejado en el clúster:
 
 ```bash
-git add Jenkinsfile k8s/
-git commit -m "Pipeline con entornos staging y production"
-git push
+kubectl get configmap modulo5168-config -o jsonpath='{.data}'
+kubectl get deployment modulo5168-app
 ```
 
-### Paso 4 · Probar en feature y en main
+Debe aparecer `TARGET_ENV: staging`, `LOG_LEVEL: DEBUG` y una réplica.
 
-**4a. Rama de feature (debe ir a staging).**
+### Paso 4 · Rama main hacia production
 
-1.  En el job Multibranch, abrir la rama feature/saludo y ejecutar *Build Now* (o esperar al *scan* o al webhook de Gitea).
+1.  Abre el build de `main` que está esperando y pulsa **Desplegar** en la aprobación. Esta es la parada manual que protege producción.
 
-2.  Abrir *Console Output* y buscar la línea de contexto: debe decir entorno: staging (réplicas: 1).
+2.  Cuando termine, repite los comandos del paso 3. Ahora deben mostrar `TARGET_ENV: production`, `LOG_LEVEL: WARN` y dos réplicas.
 
-3.  En la vista de etapas, Seleccionar entorno aparece omitida (en gris), porque la rama no es main.
+3.  Mira la etapa *Validación automática completa*: la prueba de carga usa menos peticiones en production que en staging.
 
-4.  Comprobar en Kubernetes: kubectl get deploy -n staging muestra web con 1 réplica y kubectl get deploy -n production no muestra nada.
+> **Observación:** staging y production han desplegado sobre el mismo Deployment `modulo5168-app`, así que el segundo despliegue ha sustituido al primero. Es una limitación del laboratorio, que solo tiene un clúster pequeño. En una empresa irían a espacios de nombres o clústeres distintos, cada uno con su credencial.
 
-**4b. Rama main (debe ir a production).**
+### Paso 5 · Experimento: una credencial que no existe
 
-```bash
-git switch main
-git merge feature/saludo
-git push
-```
+Objetivo: ver que el pipeline depende de credenciales por ID y que, si falta, falla antes de tocar el clúster.
 
-1.  Jenkins ejecuta el pipeline de main. En esta ocasión sí se ejecuta Seleccionar entorno.
+1.  En `feature/saludo`, cambia en `lab/Jenkinsfile` `credentials('kubeconfig-aula')` por `credentials('kubeconfig-staging')` (un ID que no existe).
 
-2.  La línea de contexto debe decir entorno: production (réplicas: 2).
+2.  Sube el cambio y deja que Jenkins construya la rama. Debe fallar con un error del tipo `Could not find credentials entry with ID 'kubeconfig-staging'`.
 
-3.  Comprobar en Kubernetes: kubectl get deploy -n production muestra web con 2 réplicas.
+3.  Revierte el cambio (`git revert HEAD`) y súbelo de nuevo. El build vuelve a ponerse en verde.
 
-### Paso 5 · Experimento de aislamiento
-
-Objetivo: demostrar que la credencial protege producción aunque el pipeline se equivoque.
-
-1.  En feature/saludo, cambiar temporalmente kubeconfig-\${env.TARGET_ENV} por kubeconfig-production (el destino sigue siendo staging por el -n).
-
-2.  Subir el cambio y ejecutar la rama. La ejecución debe fallar con Forbidden: la cuenta de producción no tiene permisos sobre staging.
-
-3.  Deshacer el cambio (git revert o restaurar la línea) y subirlo de nuevo.
-
-Pregunta de cierre: *¿qué habría pasado si las dos credenciales fueran el mismo kubeconfig de administrador?*
+Pregunta de cierre: *¿qué habría pasado si las credenciales de staging y production fueran el mismo kubeconfig de administrador en un clúster compartido?*
 
 ## Comprobación y errores frecuentes
 
 ### Resultado esperado en cada ejecución
 
-| Rama                                               | Etapa Seleccionar entorno | Línea de contexto en el log       | Credencial usada      | Namespace con cambios    |
-|----------------------------------------------------|---------------------------|-----------------------------------|-----------------------|--------------------------|
-| feature/saludo                                     | Omitida (gris)            | entorno: staging (réplicas: 1)    | kubeconfig-staging    | staging                  |
-| main                                               | Ejecutada                 | entorno: production (réplicas: 2) | kubeconfig-production | production               |
-| feature/saludo con la credencial cambiada (paso 5) | Omitida (gris)            | entorno: staging (réplicas: 1)    | kubeconfig-production | Ninguno: error Forbidden |
+| Rama                         | Aprobación a production | Línea en el log                  | ConfigMap resultante                         | Réplicas |
+|------------------------------|-------------------------|----------------------------------|----------------------------------------------|----------|
+| feature/saludo               | Omitida (gris)          | Entorno de destino: staging      | TARGET_ENV staging, LOG_LEVEL DEBUG          | 1        |
+| main                         | Pide confirmación       | Entorno de destino: production   | TARGET_ENV production, LOG_LEVEL WARN        | 2        |
+| feature con credencial falsa | Omitida (gris)          | Could not find credentials entry | Sin cambios: el build falla antes de desplegar | Las mismas |
 
-Si la credencial no se carga, el log lo indica con un error de credencial no encontrada antes de ejecutar ningún kubectl. Si se carga, el log nunca debe mostrar el contenido del kubeconfig ni el token.
+El log nunca debe mostrar el contenido del kubeconfig ni ningún token.
 
 ### Qué pedir al alumnado para validar la práctica
 
-1.  Captura de las dos credenciales creadas (sin mostrar su contenido) en la pantalla de *Credentials*.
+1.  Captura de la pantalla de *Credentials* con `kubeconfig-aula` y las otras dos (sin mostrar contenido).
 
-2.  Captura del log de la rama de feature con la línea de contexto y la etapa omitida.
+2.  Captura del log de `feature/saludo` con la línea de entorno y la etapa de aprobación omitida.
 
-3.  Captura del log de main con la línea de contexto de producción.
+3.  Captura de la aprobación pendiente y del log de `main` con la línea de production.
 
-4.  Salida de kubectl get deploy -n staging y de kubectl get deploy -n production.
+4.  Salida de `kubectl get configmap modulo5168-config -o jsonpath='{.data}'` tras cada despliegue.
 
-5.  El Jenkinsfile final subido al repositorio de Gitea.
+5.  Captura del error del paso 5 y del build que vuelve a pasar tras revertir.
 
 ### Errores frecuentes y solución
 
-| Síntoma                                                           | Causa probable                                                     | Solución                                                                                                                                  |
-|-------------------------------------------------------------------|--------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------|
-| BRANCH_NAME vacío o la etapa de main nunca se ejecuta             | El job es un Pipeline normal, no Multibranch                       | Crear un job *Multibranch Pipeline* con el repositorio de Gitea como origen                                                               |
-| La rama main va a staging                                         | La rama principal se llama master                                  | Cambiar la condición a branch 'master' o renombrar la rama                                                                                |
-| La rama nueva no aparece en Jenkins                               | Falta el *scan*                                                    | Pulsar *Scan Repository Now* o configurar el webhook de Gitea                                                                             |
-| Could not find credentials entry with ID 'kubeconfig-staging'     | ID mal escrito o credencial creada en otra carpeta o almacén       | Revisar el ID letra por letra; crear la credencial en el ámbito Global                                                                    |
-| kubectl: command not found                                        | El agente de Jenkins no tiene kubectl                              | Instalarlo en la VM o usar un agente con contenedor que lo incluya                                                                        |
-| connection refused a 127.0.0.1:6443                               | Jenkins corre en un contenedor y localhost es el propio contenedor | Regenerar los kubeconfig con la IP de la VM como SERVER                                                                                   |
-| x509: certificate is valid for ..., not ...                       | La dirección del API server no figura en el certificado            | Usar una dirección que sí figure; en el laboratorio, como último recurso, añadir insecure-skip-tls-verify: true al clúster del kubeconfig |
-| Forbidden en el entorno correcto                                  | El Role no incluye el recurso que se usa                           | Volver a ejecutar el script o añadir el recurso al Role                                                                                   |
-| Aviso A secret was passed to sh using Groovy String interpolation | Se usó "..." o """...""" en sh con una variable secreta            | Cambiar a comillas simples y dejar que el shell lea la variable                                                                           |
+| Síntoma                                                           | Causa probable                                                     | Solución                                                                                           |
+|-------------------------------------------------------------------|--------------------------------------------------------------------|----------------------------------------------------------------------------------------------------|
+| BRANCH_NAME vacío o la etapa de main nunca se ejecuta             | El job es un Pipeline normal, no Multibranch                       | Crear un job *Multibranch Pipeline* con el repositorio de Gitea como origen                        |
+| La rama main va a staging                                         | La rama principal se llama master                                  | Cambiar la condición a branch 'master' o renombrar la rama                                         |
+| La rama nueva no aparece en Jenkins                               | Falta el *scan*                                                    | Pulsar *Scan Repository Now* o esperar el escaneo periódico                                        |
+| «Jenkinsfile not found» en el escaneo                             | Script Path mal puesto                                             | Debe ser `lab/Jenkinsfile`                                                                         |
+| Could not find credentials entry with ID '...'                    | ID mal escrito (o es el experimento del paso 5)                    | Revisar el ID letra por letra; el correcto es `kubeconfig-aula`                                    |
+| Error de autenticación al escanear el repositorio                 | Falta la credencial de Gitea en el job                             | Elegir `gitea-cred` en *Branch Sources*                                                            |
+| kubectl: connection refused                                       | Minikube parado                                                    | `minikube status` y, si hace falta, `minikube start`                                               |
+| El build de main sigue «esperando»                                | La aprobación manual no se ha pulsado                              | Abrir el build y pulsar **Desplegar**                                                              |
+| Aviso A secret was passed to sh using Groovy String interpolation | Se usó "..." en sh con una variable secreta                        | Cambiar a comillas simples y dejar que el shell lea la variable                                    |
 
 ## Entregable, evaluación y ampliaciones
 
 ### Entregable (propuesta)
 
-Paquete en Aules con las capturas de la lista de validación, la URL del repositorio de Gitea y el Jenkinsfile final. Plazo sugerido: antes de la siguiente sesión.
+Paquete en Aules con las capturas de la lista de validación y la URL del repositorio de Gitea. Plazo sugerido: antes de la siguiente sesión.
 
 ### Rúbrica orientativa
 
 | Aspecto                  | Logrado                                                                           | En proceso                                                                            | No logrado                          |
 |--------------------------|-----------------------------------------------------------------------------------|---------------------------------------------------------------------------------------|-------------------------------------|
-| Credenciales             | Dos credenciales *Secret file* con ID por entorno, sin secretos en el repositorio | Credenciales creadas pero con ID inconsistentes o ficheros kubeconfig subidos a Gitea | Secretos escritos en el Jenkinsfile |
+| Credenciales             | Identifica las credenciales del laboratorio, su tipo, y explica por qué no hay secretos en el repositorio | Las localiza pero no explica cómo las recibe el pipeline | Secretos escritos en el Jenkinsfile |
 | Selección de entorno     | La rama decide staging o production y el valor por defecto es staging             | Funciona en main pero el entorno se fija a mano en alguna etapa                       | Entorno fijo o elegido manualmente  |
-| Credencial según entorno | credentialsId calculado con TARGET_ENV dentro de withCredentials                  | Usa la credencial correcta solo en un entorno                                         | Usa la misma credencial para ambos  |
-| Pruebas                  | Dos ejecuciones documentadas (feature y main) con el resultado esperado           | Una sola ejecución documentada                                                        | Sin evidencias                      |
+| Credencial según entorno | Explica la diferencia entre `credentials()` y `withCredentials` y cuándo usar cada una | Describe solo una de las dos formas | No distingue ambas |
+| Pruebas                  | Dos ejecuciones documentadas (feature y main) y el experimento del paso 5          | Una sola ejecución documentada                                                        | Sin evidencias                      |
 | Seguridad en logs        | Comillas simples en sh, sin echo de secretos                                      | Algún aviso de interpolación de secretos                                              | Secretos visibles en el log         |
 
 ### Preguntas de repaso (para el cuestionario de Aules)
@@ -477,13 +347,9 @@ Paquete en Aules con las capturas de la lista de validación, la URL del reposit
 
 ### Ampliaciones opcionales (alumnado rápido o sesiones futuras)
 
-- **Aprobación manual antes de producción**: añadir input message: 'Desplegar en production?' en la etapa de main, de modo que una persona confirme el despliegue.
-
 - **Credenciales por carpeta**: mover los jobs a carpetas staging y production y crear cada credencial en la suya.
 
-- **Un tercer entorno**: develop o pre, asociando una rama develop y un tercer kubeconfig.
-
-- **Parámetros en ficheros**: guardar los valores de cada entorno en env/staging.properties y env/production.properties y leerlos con readProperties.
+- **Un tercer entorno**: crear `lab/ansible/vars/pre.yml` con sus propios valores y una rama que lo seleccione en la etapa *Seleccionar entorno*.
 
 - **Gestor de secretos externo**: comentar HashiCorp Vault o los *Secrets* de Kubernetes como alternativa al almacén de Jenkins.
 
