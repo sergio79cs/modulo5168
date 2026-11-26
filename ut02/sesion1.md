@@ -2,20 +2,9 @@
 
 # Módulo 5168 Definición de flujos de procesos de despliegue continuo · Sesión 1 — Arquitectura de Jenkins
 
-**Objetivo.** Al terminar, el alumnado sabrá explicar cómo se reparten el trabajo el *controller* y los agentes de Jenkins, distinguirá *job*, *build* y *executor* en la interfaz y entenderá por qué el módulo usa pipelines declarativos. Además, tendrá su propio Jenkins funcionando en local, con acceso a Docker y a la red del laboratorio, y habrá ejecutado con él su primer pipeline. Es la base del criterio a de la unidad.
+**Objetivo.** Al terminar, el alumnado sabrá explicar cómo se reparten el trabajo el *controller* y los agentes de Jenkins, distinguirá *job*, *build* y *executor* en la interfaz y entenderá por qué el módulo usa pipelines declarativos. Además, habrá recorrido por dentro el Jenkins que ya tiene en su laboratorio y habrá ejecutado con él un primer pipeline escrito por él mismo. Es la base del criterio a de la unidad.
 
-**Entorno de trabajo.** Como en la UT01, todo el laboratorio se monta en local, en el ordenador de cada alumno. Hoy se añade **Jenkins** a la red Docker `lab5168`, junto a Gitea, y se usa desde el navegador en `http://localhost:8080`.
-
-### Preparación previa: imágenes descargadas
-
-Es opcional pero muy recomendable. Con todo el aula descargando a la vez, la red puede tardar varios minutos. Requisitos: Docker funcionando (`docker version` responde con cliente y servidor) y la red `lab5168` creada en la UT01 (`docker network ls` debe mostrarla; si no existe, `docker network create lab5168`).
-
-```
-docker pull jenkins/jenkins:lts-jdk21
-docker pull docker:cli
-```
-
-Jenkins necesita en torno a 1-2 GB de memoria. Si SonarQube sigue arrancado de la UT01 y el equipo va justo, páralo con `docker stop sonarqube`. Se puede volver a arrancar con `docker start sonarqube`.
+**Entorno de trabajo.** Seguimos con el laboratorio de la UT01: Docker, Gitea y **Jenkins** ya están montados en la red Docker `lab5168`. Jenkins se usa desde el navegador en `http://localhost:8080`. Hoy no se instala nada: se estudia cómo funciona lo que ya tienes.
 
 ## 3.1 Teoría
 
@@ -25,7 +14,7 @@ En la UT01 construiste a mano cada eslabón: `git`, análisis de calidad, `docke
 
 Un servidor de integración continua (CI) resuelve esto: ejecuta esos mismos pasos **de forma automática, siempre igual y en un entorno controlado**, cada vez que hay un cambio en el repositorio. Los resultados quedan registrados y visibles para todo el equipo.
 
-**Jenkins** es el servidor de automatización de código abierto más extendido. Está escrito en Java, nació hace casi dos décadas (con el nombre de Hudson, hasta que en 2011 la comunidad lo renombró Jenkins) y su punto fuerte es el ecosistema de **plugins**: hay más de mil, y casi cualquier herramienta (Git, Docker, Kubernetes, SonarQube…) tiene el suyo. Su principal inconveniente es que hay que instalarlo, mantenerlo y actualizarlo tú mismo. Es la contrapartida de tener el control total, y es lo que vamos a hacer hoy.
+**Jenkins** es el servidor de automatización de código abierto más extendido. Está escrito en Java, nació hace casi dos décadas (con el nombre de Hudson, hasta que en 2011 la comunidad lo renombró Jenkins) y su punto fuerte es el ecosistema de **plugins**: hay más de mil, y casi cualquier herramienta (Git, Docker, Kubernetes, SonarQube…) tiene el suyo. Su principal inconveniente es que hay que instalarlo, mantenerlo y actualizarlo tú mismo. Es la contrapartida de tener el control total, y es lo que hiciste al montar el laboratorio y usar Jenkins en la UT01.
 
 ### 2. Arquitectura: controller y agentes
 
@@ -189,103 +178,34 @@ Preguntas para hacer en voz alta antes de pasar a la práctica:
 
 ## 3.2 Práctica
 
-### Parte A — Instalar y verificar Jenkins
+### Parte A — Explorar el Jenkins del laboratorio
 
-**Objetivo:** tener un Jenkins propio funcionando en un contenedor, con datos persistentes, capaz de ejecutar comandos `docker` y de encontrar a Gitea por su nombre.
+**Objetivo:** reconocer en tu propio Jenkins, que ya funciona desde la UT01, las piezas que acabamos de ver en la teoría: controller, nodo integrado, executors, `JENKINS_HOME`, jobs y cola.
 
-#### Paso 1. Preparar el Dockerfile
+#### Paso 1. Comprobar que el laboratorio está en marcha
 
-La imagen oficial de Jenkins **no incluye el cliente de Docker**, y en sesiones posteriores los pipelines ejecutarán `docker build`. Vamos a crear una imagen propia que lo añada.
-
-```
-mkdir jenkins-lab5168
-cd jenkins-lab5168
-```
-
-Crea dentro un fichero llamado `Dockerfile` (con esa mayúscula y **sin extensión**) con este contenido:
+Jenkins y Gitea deben estar arrancados. Comprueba los contenedores:
 
 ```
-FROM jenkins/jenkins:lts-jdk21
-USER root
-COPY --from=docker:cli /usr/local/bin/docker /usr/local/bin/docker
+docker ps --filter name=jenkins --filter name=gitea
 ```
 
-- `FROM jenkins/jenkins:lts-jdk21`: la imagen oficial de Jenkins con soporte a largo plazo (LTS) y Java 21.
-- `USER root`: ejecuta Jenkins como administrador dentro del contenedor. Evita problemas de permisos con el socket de Docker. **Solo es aceptable en un laboratorio**, no en producción.
-- `COPY --from=docker:cli ...`: copia únicamente el programa `docker` (el cliente) desde la imagen `docker:cli`. No instala el servicio de Docker: Jenkins se comunica con el Docker de tu ordenador.
+Si falta alguno, arráncalo con `docker start jenkins` o `docker start gitea` y espera a que termine de arrancar. Después abre `http://localhost:8080` e inicia sesión con tu usuario.
 
-#### Paso 2. Construir la imagen
+Si estás usando la máquina virtual (.ova), el usuario es `aula` y la contraseña `aula1234`. Si te aparece el asistente de instalación inicial, algo no es como debería: avisa al profesor antes de seguir.
 
-```
-docker build -t jenkins-lab5168 .
-```
-
-No olvides el punto final: indica que el Dockerfile está en la carpeta actual. La primera vez tarda un poco, porque descarga las capas de Jenkins.
-
-#### Paso 3. Arrancar el contenedor
-
-```
-docker run -d --name jenkins \
-  -p 8080:8080 -p 50000:50000 \
-  -v jenkins_home:/var/jenkins_home \
-  -v /var/run/docker.sock:/var/run/docker.sock \
-  --network lab5168 \
-  --restart unless-stopped \
-  jenkins-lab5168
-```
-
-| Opción                                      | Para qué sirve                                                                 |
-|---------------------------------------------|--------------------------------------------------------------------------------|
-| `-p 8080:8080`                              | Publica la interfaz web: la abrirás en `http://localhost:8080`                 |
-| `-p 50000:50000`                            | Puerto para agentes remotos. Hoy no se usa, pero es el que verías en un entorno real |
-| `-v jenkins_home:/var/jenkins_home`         | Volumen con todos los datos de Jenkins: sobreviven si se borra el contenedor   |
-| `-v /var/run/docker.sock:/var/run/docker.sock` | Comparte con Jenkins el "enchufe" del Docker de tu ordenador. Así podrá lanzar `docker build` y `docker run` |
-| `--network lab5168`                         | Lo conecta a la red donde está Gitea, para encontrarlo por su nombre           |
-| `--restart unless-stopped`                  | Se vuelve a arrancar solo al reiniciar Docker o el equipo                      |
-
-**Advertencia sobre el socket.** Compartir `docker.sock` da a Jenkins control total sobre el Docker de tu ordenador, y por tanto prácticamente sobre el equipo. En el laboratorio es lo que necesitamos y es aceptable, pero en un entorno real se evita con agentes dedicados.
-
-**Consejos por sistema.** Los comandos con `\` al final de línea son para Linux, macOS y Git Bash o WSL en Windows. En PowerShell, o escribe el comando en una sola línea, o sustituye cada `\` por un acento grave (`` ` ``). Con Docker Desktop, la ruta `/var/run/docker.sock` funciona tal cual, aunque estés en Windows o macOS.
-
-Comprueba que el contenedor está en marcha:
-
-```
-docker ps --filter name=jenkins
-```
-
-#### Paso 4. Desbloquear Jenkins
-
-Jenkins arranca con una contraseña temporal para evitar que cualquiera de la red termine la instalación. Espera **1 o 2 minutos** y obtenla con:
-
-```
-docker exec jenkins cat /var/jenkins_home/secrets/initialAdminPassword
-```
-
-Si no aparece o da error, Jenkins aún no ha terminado de arrancar. Puedes seguir el arranque con `docker logs -f jenkins` (se sale con `Ctrl+C`); la contraseña también aparece allí, entre dos líneas de asteriscos.
-
-Abre `http://localhost:8080`, pega la contraseña en **Unlock Jenkins** y pulsa **Continue**.
-
-#### Paso 5. Plugins y primer usuario
-
-1.  En **Customize Jenkins**, elige **Install suggested plugins**. Es el conjunto básico: Git, Pipeline, Credentials, etc. Tarda entre 3 y 8 minutos según la red. Si algún plugin falla, aparece un botón **Retry**.
-
-2.  En **Create First Admin User**, crea tu usuario administrador (nombre de usuario, contraseña, nombre completo y correo). **Apunta la contraseña**: es tu acceso a partir de ahora, y la temporal deja de valer.
-
-3.  En **Instance Configuration**, deja la URL `http://localhost:8080/` y pulsa **Save and Finish**, y después **Start using Jenkins**.
-
-Mientras se instalan los plugins es buen momento para adelantar el bloque siguiente.
-
-#### Paso 6. Recorrido guiado por la interfaz
+#### Paso 2. Recorrido guiado por la interfaz
 
 Los nombres pueden variar un poco según la versión y el idioma del navegador; entre paréntesis aparece el original en inglés. Localiza y **responde en tu cuaderno**:
 
 | Dónde                                                               | Qué buscar                                          | Conecta con la teoría   |
 |---------------------------------------------------------------------|-----------------------------------------------------|--------------------------|
-| Panel de control (*Dashboard*), menú lateral                        | *Nueva Tarea*, *Historial de construcciones*, *Administrar Jenkins* | Job y build              |
-| Panel de control, parte inferior del menú lateral                   | *Cola de ejecución* y *Estado del ejecutor de construcciones*     | Cola y executor          |
+| Panel de control (*Dashboard*), lista central                       | Los jobs que ya existen de la UT01: nombre y tipo   | Job                      |
+| Panel de control, menú lateral                                      | *Nueva Tarea*, *Historial de construcciones*, *Administrar Jenkins* | Job y build              |
+| Panel de control, parte inferior del menú lateral                   | *Cola de ejecución* y *Estado del ejecutor de construcciones*      | Cola y executor          |
 | *Administrar Jenkins → Nodos* (*Manage Jenkins → Nodes*)             | El **nodo integrado** y su número de ejecutores      | Controller que ejecuta builds |
 | *Administrar Jenkins → Información del sistema* (*System Information*) | La variable `JENKINS_HOME`                           | Datos en disco           |
-| *Administrar Jenkins → Plugins* → *Instalados*                      | Busca "Pipeline" y "Git"                            | Ecosistema de plugins    |
+| *Administrar Jenkins → Plugins* → *Instalados*                      | Busca "Pipeline", "Git" y "SonarQube"               | Ecosistema de plugins    |
 | Esquina inferior derecha de cualquier pantalla                      | La versión de Jenkins                               | —                        |
 
 **Preguntas:**
@@ -296,36 +216,38 @@ Los nombres pueden variar un poco según la versión y el idioma del navegador; 
 
 3.  ¿Qué versión de Jenkins tienes?
 
-4.  Si hoy lanzaras 5 builds a la vez, ¿cuántos esperarían en la cola?
+4.  Abre uno de los jobs de la UT01 y mira su historial. ¿Cuántos builds tiene? ¿Cuál fue el resultado del último?
 
-#### Paso 7. Verificar el laboratorio
+5.  Si hoy lanzaras 5 builds a la vez, ¿cuántos esperarían en la cola?
 
-Antes de crear ningún pipeline, hay que comprobar que la instalación cumple lo que las próximas sesiones necesitan. Ejecuta cada comprobación y anota el resultado.
+#### Paso 3. Mirar `JENKINS_HOME` desde dentro
 
-| Comprobación                          | Comando o acción                                                                    | Resultado esperado                                                   |
+La interfaz es solo la fachada. Los datos están en el disco del controller. Entra a verlos desde la terminal:
+
+```
+docker exec jenkins ls /var/jenkins_home
+docker exec jenkins ls /var/jenkins_home/jobs
+docker volume ls
+```
+
+Compara con la tabla de la teoría:
+
+1.  ¿Qué carpetas de las que describe la tabla aparecen? ¿Hay alguna más?
+
+2.  En `jobs/`, ¿reconoces los nombres de los jobs que viste en el panel de control?
+
+3.  En `docker volume ls`, localiza el volumen `jenkins_home`. ¿Qué pasaría con tus jobs y usuarios si borraras el contenedor `jenkins`? ¿Y si borraras el volumen?
+
+#### Paso 4. Comprobar que Jenkins llega a Docker y a Gitea
+
+Los pipelines de las próximas sesiones necesitan que Jenkins pueda ejecutar `docker` y encontrar a Gitea por su nombre. Una comprobación rápida, que ya sabes cómo se hace:
+
+| Comprobación                          | Comando                                                                              | Resultado esperado                                                   |
 |---------------------------------------|--------------------------------------------------------------------------------------|----------------------------------------------------------------------|
-| Jenkins responde                      | Abrir `http://localhost:8080` e iniciar sesión con tu usuario                        | Aparece el Panel de control                                           |
-| Git disponible en Jenkins             | `docker exec jenkins git --version`                                                  | Muestra una versión de Git                                            |
 | Docker disponible en Jenkins          | `docker exec jenkins docker version`                                                 | Muestra **Client** y también **Server**                              |
-| Jenkins ve los contenedores del host  | `docker exec jenkins docker ps`                                                      | Lista los contenedores en marcha, incluido `jenkins`                 |
-| Jenkins encuentra a Gitea por su nombre | `docker exec jenkins curl -s -o /dev/null -w "%{http_code}\n" http://gitea:3000`    | `200`. Requiere que el contenedor `gitea` esté arrancado (`docker start gitea`) |
+| Jenkins encuentra a Gitea por su nombre | `docker exec jenkins curl -s -o /dev/null -w "%{http_code}\n" http://gitea:3000`    | `200`. Requiere que el contenedor `gitea` esté arrancado             |
 
-Si en `docker version` solo aparece el bloque *Client* y el servidor da error, o `docker ps` dice *permission denied*, revisa que has montado el socket y que la imagen lleva `USER root`.
-
-**Prueba de persistencia (para quien vaya bien de tiempo).** Comprobamos que los datos viven en el volumen y no en el contenedor:
-
-```
-docker rm -f jenkins
-docker run -d --name jenkins \
-  -p 8080:8080 -p 50000:50000 \
-  -v jenkins_home:/var/jenkins_home \
-  -v /var/run/docker.sock:/var/run/docker.sock \
-  --network lab5168 \
-  --restart unless-stopped \
-  jenkins-lab5168
-```
-
-Tras 1 o 2 minutos, entra de nuevo en `http://localhost:8080`. Debe pedirte **tu usuario y contraseña**, sin repetir el asistente inicial ni reinstalar plugins. El contenedor era nuevo, pero los datos eran los de siempre.
+Si alguna falla, no sigas: avisa al profesor, porque las sesiones siguientes dependen de esto.
 
 ### Parte B — Primer pipeline de prueba
 
@@ -417,7 +339,7 @@ pipeline {
 }
 ```
 
-Ejecuta `Construir ahora` y responde: ¿qué usuario aparece? ¿qué muestra `pwd`? ¿por qué `docker ps` funciona **dentro** del pipeline? *(Por el socket montado: el `docker` del pipeline habla con el Docker de tu ordenador.)*
+Ejecuta `Construir ahora` y responde: ¿qué usuario aparece? ¿qué muestra `pwd`? ¿por qué `docker ps` funciona **dentro** del pipeline? *(Porque el contenedor de Jenkins comparte el socket del Docker de tu ordenador: el `docker` del pipeline habla con ese Docker.)*
 
 **2. Provocar fallos a propósito.** Prueba, uno por uno, estos cambios y observa el resultado de cada build:
 
@@ -441,17 +363,12 @@ Con el pipeline funcionando, comentad en voz alta:
 
 | Error                                                                     | Consecuencia                                                        | Cómo evitarlo                                                                         |
 |---------------------------------------------------------------------------|---------------------------------------------------------------------|---------------------------------------------------------------------------------------|
-| Otro servicio ya usa el puerto 8080                                       | `port is already allocated` al arrancar el contenedor               | Usar otro puerto: `-p 8081:8080` y abrir `http://localhost:8081`                       |
-| Pedir la contraseña inicial antes de que Jenkins arranque del todo        | El fichero no existe o el comando no devuelve nada                  | Esperar 1-2 minutos o mirar `docker logs -f jenkins`                                   |
-| Perder la contraseña del usuario administrador creado en el asistente     | No se puede entrar en Jenkins                                       | Anotarla al crearla. Si se pierde, el laboratorio se recrea con `docker rm -f jenkins` y `docker volume rm jenkins_home` (se pierde toda la configuración) |
-| Fallan plugins durante la instalación (red saturada)                      | Instalación incompleta, faltan Pipeline o Git                        | Pulsar **Retry**, o instalarlos después en *Administrar Jenkins → Plugins*             |
-| Olvidar el punto final en `docker build -t jenkins-lab5168 .`              | `requires exactly 1 argument`                                       | Comprobar que el comando termina en `.`                                               |
-| Usar la imagen oficial sin el Dockerfile propio                           | `docker: not found` dentro de un pipeline                           | Construir `jenkins-lab5168` y arrancar con esa imagen                                 |
-| No montar el socket de Docker (`-v /var/run/docker.sock:...`)              | `Cannot connect to the Docker daemon` al usar `docker`               | Recrear el contenedor con las opciones del paso 3                                     |
+| El equipo o la máquina virtual se reinició y Jenkins no responde          | `ERR_CONNECTION_REFUSED` en el navegador                            | `docker start jenkins`. Con `--restart unless-stopped` arranca solo si Docker está en marcha |
+| El contenedor `gitea` está parado                                         | La comprobación con `curl` no devuelve `200`                        | `docker start gitea`                                                                  |
 | Crear el job como *Freestyle* en lugar de *Pipeline*                      | No aparece la sección *Pipeline* con el cuadro *Script*             | Crear un job nuevo y elegir **Pipeline**                                              |
 | Pegar el script con comillas tipográficas (`‘ ’`) o con espacios extraños   | Errores `unexpected char` o de sintaxis al ejecutar                  | Copiar de un editor de texto plano y comprobar que las comillas son rectas (`'`)      |
-| Ejecutar `docker rm -f jenkins` y `docker volume rm jenkins_home` sin querer | Se borran usuario, jobs y plugins                                    | Borrar solo el contenedor: los datos viven en el volumen                              |
-| El equipo se reinició y Jenkins no responde                               | `ERR_CONNECTION_REFUSED` en el navegador                            | `docker start jenkins` (con `--restart unless-stopped` arranca solo si Docker está en marcha) |
+| `docker: not found` o `Cannot connect to the Docker daemon` dentro de Jenkins | `docker version` o un `sh 'docker ...'` falla                    | Tu Jenkins no se creó como indica la guía del laboratorio: avisa al profesor          |
+| Ejecutar `docker volume rm jenkins_home` sin querer                       | Se borran usuarios, jobs y plugins                                    | Borrar solo el contenedor, nunca el volumen: los datos viven en él                    |
 | El build queda en "Waiting for next available executor"                   | El build no arranca                                                 | Comprobar en *Nodos* que el nodo integrado tiene al menos 1 ejecutor                  |
 
 ---
