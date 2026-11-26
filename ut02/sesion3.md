@@ -122,45 +122,44 @@ pipeline {
 ### Paso 1. Comprobar que el laboratorio está levantado
 
 ```bash
-docker compose ps
+docker ps --filter name=jenkins --filter name=gitea
 ```
 
-Deben aparecer Jenkins y Gitea en estado *running*. Por defecto se accede a Jenkins en `http://localhost:8080` y a Gitea en `http://localhost:3000` (los puertos pueden variar según el `docker-compose`).
+Deben aparecer los contenedores `jenkins` y `gitea` en estado *Up*. Jenkins está en `http://localhost:8080` y Gitea en `http://localhost:3000` (usuario `aula` / `aula1234` en la .ova). Si alguno está parado: `docker start gitea jenkins`.
 
-### Paso 2. Crear el repositorio en Gitea
+### Paso 2. Localizar el repositorio del laboratorio
 
-1. En Gitea, pulsa **+** → **Nuevo repositorio**.
-2. Nombre: `laboratorio-cicd`. Marca **Inicializar repositorio** y comprueba que la rama por defecto es `main`.
-3. Crea el repositorio. Puedes dejarlo público o privado; si es privado, necesitarás el paso 4.
+No se crea ningún repositorio nuevo: se usa `modulo5168-lab`, que ya tienes en Gitea desde la UT01. Ábrelo en `http://localhost:3000/aula/modulo5168-lab` y comprueba que la rama es `main` y que existe la carpeta `lab/` con sus Jenkinsfile.
+
+Para esta sesión añadirás un Jenkinsfile propio en una carpeta aparte, `ut02-s3/`, de modo que no interfiere con el pipeline del laboratorio (`lab/Jenkinsfile`).
 
 ### Paso 3. Añadir el Jenkinsfile
 
-Clona el repositorio en tu ordenador, crea el fichero en la raíz y súbelo:
+Clona el repositorio en la máquina virtual, crea la carpeta y el fichero y súbelo:
 
 ```bash
-git clone http://localhost:3000/<usuario>/laboratorio-cicd.git
-cd laboratorio-cicd
-# crea aquí el fichero Jenkinsfile (sección 3.3)
-git add Jenkinsfile
-git commit -m "Añade Jenkinsfile inicial"
+git clone http://localhost:3000/aula/modulo5168-lab.git
+cd modulo5168-lab
+mkdir ut02-s3
+# crea aquí el fichero ut02-s3/Jenkinsfile (sección 3.3)
+git add ut02-s3/Jenkinsfile
+git commit -m "Añade Jenkinsfile de la sesión 3"
 git push origin main
 ```
 
-Comprueba en la web de Gitea que el fichero aparece en la raíz del repositorio.
+Si Git pide usuario y contraseña, son los de Gitea (`aula` / `aula1234`). Comprueba en la web de Gitea que el fichero aparece en `ut02-s3/`.
 
-### Paso 4. Crear la credencial (solo si el repositorio es privado)
+### Paso 4. Credenciales
 
-1. En Gitea: **Configuración de usuario → Aplicaciones → Generar nuevo token**, con permiso de solo lectura sobre repositorios. Copia el token, porque no se vuelve a mostrar.
-2. En Jenkins: **Manage Jenkins → Credentials → System → Global credentials → Add Credentials**.
-3. Tipo **Username with password**: tu usuario de Gitea y, como contraseña, el token. ID: `gitea-token`.
+El repositorio del laboratorio ya tiene su credencial en Jenkins (`gitea-cred`, creada en la UT01). Úsala en el paso siguiente; no hay que generar ningún token nuevo.
 
-### Paso 5. Reconfigurar el Job
+### Paso 5. Crear el Job desde SCM
 
-1. Abre el Job del laboratorio y pulsa **Configure**.
+1. **Nuevo Item → Pipeline** con el nombre `ut02-s3-tunombre`. No modifiques el job `modulo5168-demo`.
 2. En la sección **Pipeline**, cambia **Definition** a **Pipeline script from SCM**.
-3. **SCM:** Git. **Repository URL:** `http://gitea:3000/<usuario>/laboratorio-cicd.git` (nombre del servicio de Gitea en el `docker-compose`, no `localhost`).
-4. **Credentials:** `gitea-token` si el repositorio es privado; en caso contrario, *none*.
-5. **Branch Specifier:** `*/main`. **Script Path:** `Jenkinsfile`.
+3. **SCM:** Git. **Repository URL:** `http://gitea:3000/aula/modulo5168-lab.git` (nombre del contenedor de Gitea, no `localhost`).
+4. **Credentials:** `gitea-cred`.
+5. **Branch Specifier:** `*/main`. **Script Path:** `ut02-s3/Jenkinsfile`.
 6. Guarda con **Save**.
 
 ### Paso 6. Lanzar un build manual y validar
@@ -202,7 +201,7 @@ La `H` reparte la carga entre Jobs, para que no consulten todos el repositorio e
 
 Un webhook es, en esencia, **una petición HTTP POST que el servidor Git envía a una URL cuando ocurre un evento**. Sus elementos son:
 
-- **URL de destino:** la de Jenkins. Depende del plugin, por ejemplo `/generic-webhook-trigger/invoke` (Generic Webhook Trigger), `/gitea-webhook/post` (plugin Gitea) o `/github-webhook/` (plugin GitHub).
+- **URL de destino:** la de Jenkins. Depende del plugin; en nuestro laboratorio se usa el endpoint que trae Jenkins con el plugin Git, `/git/notifyCommit?url=<repositorio>`. Otros plugins usan `/generic-webhook-trigger/invoke`, `/gitea-webhook/post` o `/github-webhook/`.
 - **Evento:** en esta sesión, *push*. También existen pull request, creación de etiquetas, etc.
 - **Content type:** normalmente `application/json`.
 - **Payload:** cuerpo JSON con los datos del evento.
@@ -215,8 +214,8 @@ Payload simplificado de un evento *push*:
 {
   "ref": "refs/heads/main",
   "after": "3f2a9c1...",
-  "repository": { "full_name": "alumno/laboratorio-cicd" },
-  "pusher": { "login": "alumno" },
+  "repository": { "full_name": "aula/modulo5168-lab" },
+  "pusher": { "login": "aula" },
   "commits": [ { "message": "Añade etapa de test" } ]
 }
 ```
@@ -225,8 +224,8 @@ Payload simplificado de un evento *push*:
 
 ### 5.3 Red y seguridad
 
-- **Quién llama a quién:** Gitea llama a Jenkins (webhook) y Jenkins llama a Gitea (descarga del código). Ambos sentidos deben funcionar. Con los dos servicios en el mismo `docker-compose` se resuelven por nombre de servicio y no hay que exponer nada.
-- **Gitea bloquea por defecto los webhooks hacia IPs privadas.** Hay que permitirlo con `ALLOWED_HOST_LIST` en la sección `[webhook]` de `app.ini`.
+- **Quién llama a quién:** Gitea llama a Jenkins (webhook) y Jenkins llama a Gitea (descarga del código). Ambos sentidos deben funcionar. Con los dos contenedores en la red Docker `lab5168` se resuelven por nombre (`jenkins`, `gitea`) y no hay que exponer nada.
+- **Gitea bloquea por defecto los webhooks hacia IPs privadas.** Hay que permitirlo con `ALLOWED_HOST_LIST`; en el laboratorio ya está configurado (`private,loopback`), así que no tendrás que tocarlo.
 - **Exponer Jenkins a internet** (por ejemplo, con un túnel para usar GitHub) amplía la superficie de ataque. Si se hace, hay que usar secret, autenticación y mínimos privilegios.
 - **Credenciales:** nunca dentro del Jenkinsfile ni del repositorio. Se guardan en el almacén de credenciales de Jenkins y se referencian por su ID.
 - **Mínimo privilegio:** el token que usa Jenkins solo necesita lectura sobre el repositorio.
@@ -237,41 +236,34 @@ Payload simplificado de un evento *push*:
 
 **Objetivo:** comprobar que un `push` al repositorio dispara el build sin pulsar *Build Now*.
 
-### Paso 1. Permitir webhooks hacia la red interna en Gitea
+### Paso 1. Comprobar que Gitea permite webhooks hacia Jenkins
 
-Gitea rechaza por defecto los webhooks dirigidos a direcciones privadas, y el nombre `jenkins` se resuelve a una IP privada de la red de Docker. Edita el `app.ini` de Gitea (en la imagen oficial, `/data/gitea/conf/app.ini`) y añade:
-
-```ini
-[webhook]
-ALLOWED_HOST_LIST = private
-```
-
-Otra opción es definir la variable de entorno `GITEA__webhook__ALLOWED_HOST_LIST=private` en el `docker-compose`. En ambos casos, reinicia Gitea:
+Gitea rechaza por defecto los webhooks dirigidos a direcciones privadas, y `jenkins` se resuelve a una IP privada de la red Docker. En el laboratorio esto ya está resuelto con la variable `GITEA__webhook__ALLOWED_HOST_LIST`. Compruébalo sin cambiar nada:
 
 ```bash
-docker compose restart gitea
+docker exec gitea env | grep ALLOWED_HOST
 ```
 
-### Paso 2. Instalar el plugin en Jenkins
+Debe aparecer `GITEA__webhook__ALLOWED_HOST_LIST=private,loopback`. Si no aparece, avisa al profesor.
 
-1. En Jenkins: **Manage Jenkins → Plugins → Available plugins**.
-2. Busca **Generic Webhook Trigger** e instálalo. Reinicia Jenkins si lo pide.
+### Paso 2. No hace falta instalar ningún plugin
+
+El endpoint `/git/notifyCommit` viene con el plugin Git, que Jenkins ya tiene. Lo único que necesita es que el Job tenga activado el sondeo de SCM, aunque sin planificación.
 
 ### Paso 3. Activar el trigger en el Job
 
-1. Abre el Job y pulsa **Configure**.
-2. En **Build Triggers**, marca **Generic Webhook Trigger**.
-3. En el campo **Token**, escribe `laboratorio` (o el que prefieras, pero debe coincidir con la URL del paso 4).
-4. Guarda con **Save**.
+1. Abre el Job `ut02-s3-tunombre` y pulsa **Configure**.
+2. En **Build Triggers**, marca **Poll SCM** y deja el campo **Schedule** **vacío**. Así Jenkins no consulta por su cuenta: solo reacciona cuando Gitea le avisa.
+3. Guarda con **Save**.
 
-### Paso 4. Crear el webhook en Gitea
+### Paso 4. Revisar o crear el webhook en Gitea
 
-1. En el repositorio: **Configuración → Webhooks → Añadir webhook → Gitea**.
-2. **URL de destino:** `http://jenkins:8080/generic-webhook-trigger/invoke?token=laboratorio` (usa el nombre del servicio de Jenkins en tu `docker-compose`).
-3. **Método:** POST. **Content type:** `application/json`.
-4. **Eventos que lo activan:** solo *Push events*. Filtro de rama: `main`.
-5. Marca **Activo** y guarda.
-6. Pulsa **Probar entrega** (*Test Delivery*) y abre la entrega: debe mostrar una respuesta con código 200.
+1. En el repositorio: **Configuración → Webhooks**. Si ya existe uno que apunta a Jenkins, comprueba que su URL coincide con la de abajo y salta al punto 6. Si no, **Añadir webhook → Gitea**.
+2. **URL de destino:** `http://jenkins:8080/git/notifyCommit?url=http://gitea:3000/aula/modulo5168-lab.git`
+3. **Método:** GET. **Eventos que lo activan:** solo *Push events*. Filtro de rama: `main`.
+4. Marca **Activo** y guarda.
+5. Pulsa **Probar entrega** (*Test Delivery*).
+6. Abre la entrega en **Recent Deliveries**: debe mostrar respuesta con código 200.
 
 ### Paso 5. Provocar el disparo con un push
 
@@ -297,7 +289,7 @@ pipeline {
 Súbelo a Gitea:
 
 ```bash
-git add Jenkinsfile
+git add ut02-s3/Jenkinsfile
 git commit -m "Añade etapa de test"
 git push origin main
 ```
@@ -306,16 +298,16 @@ git push origin main
 
 1. Sin pulsar *Build Now*, observa el Job: debe aparecer un build nuevo unos segundos después del push.
 2. Abre el build y comprueba en **Console Output** que existe la etapa *Test*, lo que confirma que Jenkins ha leído el Jenkinsfile modificado.
-3. Anota la causa del disparo que muestra el build (*Generic Webhook Trigger*) y el hash del commit.
+3. Anota la causa del disparo que muestra el build (*Started by an SCM change*, o similar) y el hash del commit.
 4. Haz una segunda modificación pequeña y repite el ciclo para comprobar que no ha sido casualidad.
 
-### Alternativa A. Plugin de Gitea
+### Alternativa A. Otros plugins de webhook
 
-Instala **Gitea** en Jenkins y usa como URL de destino `http://jenkins:8080/gitea-webhook/post`. Este plugin está pensado para *Multibranch Pipeline* y organizaciones, así que con un Job de Pipeline simple hay que verificar antes que el trigger funciona en la versión instalada.
+Existen el plugin *Generic Webhook Trigger* (URL `/generic-webhook-trigger/invoke?token=...`) y el plugin *Gitea* (`/gitea-webhook/post`, pensado para *Multibranch*). No se instalan en esta sesión: el endpoint `notifyCommit` cubre lo que necesitamos y evita tocar el Jenkins del laboratorio.
 
-### Alternativa B (plan B). Poll SCM
+### Alternativa B (plan B). Poll SCM con planificación
 
-Si la red o los permisos impiden el webhook, se puede demostrar el flujo desde SCM con polling. En el Job: **Build Triggers → Poll SCM**, con la expresión `H/2 * * * *`. No demuestra el webhook, pero sí que Jenkins reacciona a los cambios del repositorio.
+Si el webhook no llega, se puede demostrar el flujo con sondeo. En el Job: **Build Triggers → Poll SCM**, con la expresión `H/2 * * * *`. No demuestra el webhook, pero sí que Jenkins reacciona a los cambios del repositorio.
 
 ---
 
@@ -327,13 +319,12 @@ Si la red o los permisos impiden el webhook, se puede demostrar el flujo desde S
 | «Couldn't find any revision to build» | Rama `master` frente a `main` en el Branch Specifier | Ajustar a `*/main` (o la rama real) |
 | «Unable to find Jenkinsfile» | Fichero mal escrito, con otra extensión o fuera de la raíz | Revisar nombre, mayúsculas y **Script Path** |
 | Error de autenticación al clonar | Repo privado sin credencial o token sin permisos | Crear la credencial y comprobar el permiso de lectura |
-| La entrega del webhook falla con «host not allowed» | Gitea bloquea IPs privadas | Configurar `ALLOWED_HOST_LIST` y reiniciar Gitea |
-| La entrega devuelve 404 | URL o nombre de servicio incorrectos | Revisar la ruta del plugin y el nombre del servicio |
-| La entrega devuelve 403 | Protección CSRF o permisos anónimos | Usar el endpoint del plugin con su token |
-| La entrega devuelve 200 pero no hay build | Trigger sin marcar o token distinto | Revisar **Build Triggers** y que el token coincida |
-| Content type incorrecto | El webhook no usa JSON | Configurar `application/json` |
+| La entrega del webhook falla con «host not allowed» | Gitea bloquea IPs privadas | Comprobar `ALLOWED_HOST_LIST` (paso 1) y avisar al profesor |
+| La entrega devuelve 404 | URL o nombre de contenedor incorrectos | Revisar la ruta `/git/notifyCommit` y el nombre `jenkins` |
+| La entrega devuelve 403 | Permisos anónimos en Jenkins | Avisar al profesor; el laboratorio permite notifyCommit |
+| La entrega devuelve 200 pero no hay build | **Poll SCM** sin marcar o URL del repositorio distinta a la del Job | Marcar **Poll SCM** (vacío) y que `url=` coincida con la Repository URL del Job |
 
-Herramientas de depuración: **Recent Deliveries** en el webhook de Gitea (petición y respuesta completas), **Console Output** del build y el log del contenedor (`docker compose logs jenkins`).
+Herramientas de depuración: **Recent Deliveries** en el webhook de Gitea (petición y respuesta completas), **Console Output** del build y el log del contenedor (`docker logs jenkins`).
 
 ---
 
