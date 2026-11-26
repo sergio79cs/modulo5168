@@ -19,7 +19,7 @@ En la sesión 8 se verificó a mano que los parámetros llegan al Pod. En esta s
 **Requisitos previos**
 
 - El laboratorio de la UT01 en marcha: Jenkins (imagen `jenkins-lab`, que ya incluye `ansible-playbook` y `kubectl`), Gitea con el repositorio `modulo5168-lab` y Minikube.
-- Haber ejecutado al menos una vez con éxito el job `modulo5168-demo` (así existen en el clúster el Deployment `modulo5168-app`, Redis y la imagen `localhost:5000/modulo5168-app:stable`).
+- Haber completado la sesión 7 con al menos un build correcto de una rama del job `modulo5168-multibranch` (`lab/Jenkinsfile` completo; `modulo5168-demo` no basta, solo hace el calentamiento). Así existen en el clúster el Deployment `modulo5168-app`, Redis y la imagen `localhost:5000/modulo5168-app:stable`).
 - Directorio `lab/ansible` del repositorio, con `inventory.ini` y `playbook.yml` que reciben `target_env` y `app_version`.
 - La credencial `kubeconfig-aula` de Jenkins, que da acceso al clúster. No hay que configurar nada más.
 
@@ -337,7 +337,7 @@ git push
 4. Abrir *Console Output* y localizar: la línea `+ ansible-playbook ...`, el `PLAY RECAP` y la línea `successfully rolled out`.
 5. Comprobar en el clúster, como en la sesión 8: `kubectl get pods` y `kubectl exec deploy/modulo5168-app -- env | grep APP_VERSION`.
 
-Este es el estado que se entrega. Si el build falla al descargar la imagen `stable`, es que el job `modulo5168-demo` aún no ha terminado con éxito ninguna vez: ejecútalo primero. Antes de capturar, comprobar que se ven los nombres de las dos etapas y el número del build.
+Este es el estado que se entrega. Si el build falla al descargar la imagen `stable`, es que el `lab/Jenkinsfile` completo aún no ha terminado con éxito ninguna vez: lanza un build de una rama en `modulo5168-multibranch` (sesión 7) primero. Antes de capturar, comprobar que se ven los nombres de las dos etapas y el número del build.
 
 ### Paso 6 · Provocar un fallo de despliegue
 

@@ -38,7 +38,7 @@ Al terminar la sesión, el alumnado será capaz de:
 
 ### Preparación del profesor (antes de clase)
 
-- Comprobar que Minikube está arrancado en alguna VM de muestra (`minikube status`) y que el job `modulo5168-demo` construye con éxito.
+- Comprobar que Minikube está arrancado en alguna VM de muestra (`minikube status`) y que `modulo5168-demo` construye con éxito (solo ejecuta el calentamiento; el despliegue completo lo lanzarás tú en esta sesión).
 
 - Comprobar que `lab/ansible/vars/staging.yml` y `production.yml` siguen con valores distintos (réplicas y nivel de log), porque son lo que el alumnado va a observar.
 
@@ -314,6 +314,7 @@ El log nunca debe mostrar el contenido del kubeconfig ni ningún token.
 | Could not find credentials entry with ID '...'                    | ID mal escrito (o es el experimento del paso 5)                    | Revisar el ID letra por letra; el correcto es `kubeconfig-aula`                                    |
 | Error de autenticación al escanear el repositorio                 | Falta la credencial de Gitea en el job                             | Elegir `gitea-cred` en *Branch Sources*                                                            |
 | kubectl: connection refused                                       | Minikube parado                                                    | `minikube status` y, si hace falta, `minikube start`                                               |
+| Los builds quedan en cola y no arrancan                           | Solo hay 2 ejecutores y `main` parado en la aprobación ocupa uno; además se construyen todas las ramas del repositorio | Aprobar o abortar el build de `main`, o abortar builds de ramas que no uses                        |
 | El build de main sigue «esperando»                                | La aprobación manual no se ha pulsado                              | Abrir el build y pulsar **Desplegar**                                                              |
 | Aviso A secret was passed to sh using Groovy String interpolation | Se usó "..." en sh con una variable secreta                        | Cambiar a comillas simples y dejar que el shell lea la variable                                    |
 

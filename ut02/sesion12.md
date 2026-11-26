@@ -52,7 +52,7 @@ Esta sesión no incorpora contenido nuevo. Es una sesión de integración: el al
 ### 2.1 Para el profesor/a, antes de la sesión
 
 1. **Hacer un ensayo completo en una `.ova` limpia** siguiendo el apartado 5.
-2. Comprobar que `modulo5168-demo` construye en verde y que el job `modulo5168-multibranch` (sesión 7) existe y detecta ramas.
+2. Comprobar que el job `modulo5168-multibranch` (sesión 7) existe y detecta ramas, con al menos un build completo correcto (así existen el Deployment, Redis y la imagen `stable`).
 3. Tener a mano la rúbrica del [índice de la UT02](./) (apartado «Cómo se evalúa»), proyectada o impresa.
 
 ### 2.2 En la VM de cada alumno/a
@@ -66,7 +66,7 @@ kubectl get nodes
 curl -s http://192.168.49.2:30080/health
 ```
 
-Los contenedores deben estar *Up*, Minikube en *Running* y el nodo en *Ready*. El `curl` responde si ya hay un despliegue de `modulo5168-demo`.
+Los contenedores deben estar *Up*, Minikube en *Running* y el nodo en *Ready*. El `curl` responde si ya hay un despliegue del `lab/Jenkinsfile` completo (sesión 7).
 
 Además, cada alumno/a necesita su repositorio `modulo5168-lab` en Gitea con la rama `main` y el job `modulo5168-multibranch` creado en la sesión 7.
 
@@ -314,7 +314,7 @@ La revisión se hace durante la propia sesión, mesa por mesa, contra la rúbric
 | `kubectl: connection refused` | Minikube parado | `minikube status` y `minikube start` |
 | La etapa de aprobación se queda esperando | Estás en la rama `main` | En la rama `feature/integradora` no se pide; en `main` hay que pulsar **Desplegar** |
 | El build falla antes de lo esperado | Se ha escrito mal el cambio provocado | Mira la etapa roja en *Console Output*; revierte con `git revert HEAD` |
-| Tras la fase 5, el pipeline falla al comprobar Redis | Se ha borrado Redis sin querer | Vuelve a ejecutar `modulo5168-demo`: el pipeline lo instala |
+| Tras la fase 5, el pipeline falla al comprobar Redis | Se ha borrado Redis sin querer | Vuelve a lanzar un build de la rama en `modulo5168-multibranch`: el pipeline lo instala |
 | `diff antes.txt despues.txt` muestra diferencias de edad (`AGE`) | La columna de antigüedad cambia con el tiempo | Compara solo los nombres de objeto, no la edad |
 | `error: timed out waiting for the condition` | Los Pods nuevos no están listos (es lo esperado en la fase 4) | Lee los eventos con `kubectl describe pod` |
 

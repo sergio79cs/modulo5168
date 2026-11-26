@@ -201,12 +201,12 @@ La `H` reparte la carga entre Jobs, para que no consulten todos el repositorio e
 
 Un webhook es, en esencia, **una petición HTTP POST que el servidor Git envía a una URL cuando ocurre un evento**. Sus elementos son:
 
-- **URL de destino:** la de Jenkins. Depende del plugin; en nuestro laboratorio se usa el endpoint que trae Jenkins con el plugin Git, `/git/notifyCommit?url=<repositorio>`. Otros plugins usan `/generic-webhook-trigger/invoke`, `/gitea-webhook/post` o `/github-webhook/`.
+- **URL de destino:** la de Jenkins. Depende del plugin; en nuestro laboratorio se usa el endpoint que trae Jenkins con el plugin Git, `/git/notifyCommit?url=<repositorio>&token=<token>`. El token es un permiso de acceso que Jenkins exige para aceptar el aviso. Otros plugins usan `/generic-webhook-trigger/invoke`, `/gitea-webhook/post` o `/github-webhook/`.
 - **Evento:** en esta sesión, *push*. También existen pull request, creación de etiquetas, etc.
 - **Content type:** normalmente `application/json`.
 - **Payload:** cuerpo JSON con los datos del evento.
 - **Secret:** cadena compartida con la que el servidor firma el mensaje (HMAC) para que el receptor compruebe su origen.
-- **Respuesta y reintentos:** Jenkins responde con un código HTTP (200 = recibido, 403 = permisos o CSRF, 404 = URL incorrecta). El servidor Git conserva el historial de entregas, muy útil para depurar.
+- **Respuesta y reintentos:** Jenkins responde con un código HTTP (200 = recibido, 401 = falta el token, 403 = permisos o CSRF, 404 = URL incorrecta). El servidor Git conserva el historial de entregas, muy útil para depurar.
 
 Payload simplificado de un evento *push*:
 
@@ -246,9 +246,15 @@ docker exec gitea env | grep ALLOWED_HOST
 
 Debe aparecer `GITEA__webhook__ALLOWED_HOST_LIST=private,loopback`. Si no aparece, avisa al profesor.
 
-### Paso 2. No hace falta instalar ningún plugin
+### Paso 2. Crear el token de acceso de Jenkins
 
-El endpoint `/git/notifyCommit` viene con el plugin Git, que Jenkins ya tiene. Lo único que necesita es que el Job tenga activado el sondeo de SCM, aunque sin planificación.
+No hace falta instalar ningún plugin: el endpoint `/git/notifyCommit` viene con el plugin Git, que Jenkins ya tiene. Pero Jenkins solo acepta el aviso si trae un **token de acceso**, y la máquina del laboratorio no trae ninguno creado. Lo creas tú una vez:
+
+1. En Jenkins: **Administrar Jenkins → Security** (*Configure Global Security*) y baja hasta **Git plugin notifyCommit access tokens**.
+2. Pulsa **Add new access token**, ponle de nombre `gitea` y pulsa **Generate**.
+3. Copia el valor que aparece (solo se muestra una vez) y guárdalo en un lugar a mano. Pulsa **Guardar** al final de la página.
+
+Ese valor irá en la URL del webhook (paso 4). Es un secreto del laboratorio: no lo subas al repositorio.
 
 ### Paso 3. Activar el trigger en el Job
 
@@ -264,8 +270,8 @@ El endpoint `/git/notifyCommit` viene con el plugin Git, que Jenkins ya tiene. L
 
 | Campo | Valor | Para qué sirve |
 |---|---|---|
-| URL de destino | `http://jenkins:8080/git/notifyCommit?url=http://gitea:3000/aula/modulo5168-lab.git` | A quién se avisa. `jenkins` es el nombre del contenedor en la red Docker. `/git/notifyCommit` es el punto de entrada del plugin Git de Jenkins, y el parámetro `url` indica de qué repositorio es el aviso. **Tiene que ser idéntico a la Repository URL del Job**, carácter por carácter. |
-| Método HTTP | `GET` | `notifyCommit` se llama con GET. No hay cuerpo JSON ni content type que configurar. |
+| URL de destino | `http://jenkins:8080/git/notifyCommit?url=http://gitea:3000/aula/modulo5168-lab.git&token=<tu-token>` | A quién se avisa. `jenkins` es el nombre del contenedor en la red Docker. `/git/notifyCommit` es el punto de entrada del plugin Git de Jenkins, el parámetro `url` indica de qué repositorio es el aviso y `token` es el que creaste en el paso 2. **La parte `url` tiene que ser idéntica a la Repository URL del Job**, carácter por carácter. |
+| Método HTTP | `POST` | Con `GET`, Gitea añade todo el contenido del evento a la URL y Jenkins la rechaza por demasiado larga (error 414). Con `POST` el contenido va en el cuerpo y la URL queda corta. Deja el tipo de contenido en `application/json`. |
 | Evento | Solo *Push events* | Qué hace saltar el aviso. Con «Eventos personalizados» se puede afinar, pero no hace falta. |
 | Filtro de rama | `main` | Solo los push a esa rama disparan el aviso. |
 | Secret | Vacío | En producción se usaría para firmar el mensaje. En el laboratorio no hace falta, porque la red Docker es privada. |
@@ -333,7 +339,8 @@ Si el webhook no llega, se puede demostrar el flujo con sondeo. En el Job: **Bui
 | Error de autenticación al clonar | Repo privado sin credencial o token sin permisos | Crear la credencial y comprobar el permiso de lectura |
 | La entrega del webhook falla con «host not allowed» | Gitea bloquea IPs privadas | Comprobar `ALLOWED_HOST_LIST` (paso 1) y avisar al profesor |
 | La entrega devuelve 404 | URL o nombre de contenedor incorrectos | Revisar la ruta `/git/notifyCommit` y el nombre `jenkins` |
-| La entrega devuelve 403 | Permisos anónimos en Jenkins | Avisar al profesor; el laboratorio permite notifyCommit |
+| La entrega devuelve 401 («An access token is required») | Falta el token en la URL o es incorrecto | Crear el token (paso 2) y añadir `&token=...` a la URL |
+| La entrega devuelve 414 | El método del webhook es `GET` | Cambiarlo a `POST` |
 | La entrega devuelve 200 pero no hay build | **Poll SCM** sin marcar o URL del repositorio distinta a la del Job | Marcar **Poll SCM** (vacío) y que `url=` coincida con la Repository URL del Job |
 
 Herramientas de depuración: **Recent Deliveries** en el webhook de Gitea (petición y respuesta completas), **Console Output** del build y el log del contenedor (`docker logs jenkins`).
