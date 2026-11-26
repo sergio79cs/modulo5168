@@ -128,24 +128,24 @@ En un job **Multibranch**, Jenkins crea un pipeline por cada rama y define BRANC
 
 selección de entorno por rama · 1 decisión, 2 destinos
 
-Una rama distinta de main sigue el camino de staging, que es el valor por defecto; solo main cambia a production y, con ello, a su credencial y a sus parámetros.
+Una rama distinta de main sigue el camino de staging; solo main cambia a production y, con ello, a su credencial y a sus parámetros.
 
 ```groovy
 pipeline {
     agent any
-    environment {
-        TARGET_ENV = "staging"          // valor por defecto: cualquier rama va a staging
-    }
     stages {
         stage('Seleccionar entorno') {
-            when { branch 'main' }
-            steps { script { env.TARGET_ENV = "production" } }
+            steps {
+                script {
+                    // main -> production; cualquier otra rama -> staging
+                    env.TARGET_ENV = (env.BRANCH_NAME == 'main') ? 'production' : 'staging'
+                    echo "Entorno de destino: ${env.TARGET_ENV}"
+                }
+            }
         }
         stage('Desplegar') {
             steps {
-                withCredentials([file(credentialsId: "kubeconfig-${env.TARGET_ENV}", variable: 'KUBECONFIG')]) {
-                    sh 'kubectl apply -f k8s/ -n ${TARGET_ENV}'
-                }
+                sh 'echo Desplegando en ${TARGET_ENV}'
             }
         }
     }
@@ -154,11 +154,11 @@ pipeline {
 
 Puntos a explicar sobre este código:
 
-- El valor por defecto es el seguro: si algo falla al evaluar la rama, se queda en staging, nunca en production.
+- El valor se decide siempre con una condición que cubre las dos ramas, y el caso «otra rama» da staging, nunca production.
 
 - Asignar a env.TARGET_ENV dentro de script modifica la variable de entorno para **todas las etapas siguientes**; una variable Groovy normal (def x) no sobrevive entre etapas.
 
-- La etapa Seleccionar entorno se omite (aparece en gris) en las ramas que no son main.
+- **No declares TARGET_ENV también en el bloque environment {}**: Jenkins da prioridad a lo declarado ahí y la asignación posterior de la etapa se ignora, así que la rama main acabaría en staging sin ningún error. Es justo el fallo que vas a corregir en el paso 0.
 
 > **En el laboratorio:** solo existe una credencial, `kubeconfig-aula`, y el Jenkinsfile la carga con `credentials('kubeconfig-aula')` (forma 1). Staging y production comparten clúster, así que lo que cambia entre ellos son los parámetros que genera Ansible. El código de arriba muestra el caso real de una empresa, con una credencial por entorno.
 
@@ -195,9 +195,9 @@ El alumnado crea el job Multibranch, observa cómo el mismo `lab/Jenkinsfile` de
 | 4    | Rama main hacia production, con aprobación    | ConfigMap con los parámetros de production             |
 | 5    | Experimento: credencial inexistente           | El pipeline falla antes de tocar el clúster            |
 
-### Paso 0 · Mirar cómo está montado el laboratorio
+### Paso 0 · Mirar cómo está montado el laboratorio y corregir el Jenkinsfile
 
-No hay nada que instalar. Desde el repositorio clonado en la VM (si no lo tienes: `git clone http://localhost:3000/aula/modulo5168-lab.git`) mira los dos sitios donde se decide el entorno:
+No hay nada que instalar, pero el `lab/Jenkinsfile` de la máquina trae un fallo que tienes que corregir antes de seguir. Desde el repositorio clonado en la VM (si no lo tienes: `git clone http://localhost:3000/aula/modulo5168-lab.git`) mira los dos sitios donde se decide el entorno:
 
 ```bash
 cd modulo5168-lab
@@ -206,6 +206,22 @@ cat lab/ansible/vars/staging.yml lab/ansible/vars/production.yml
 ```
 
 Anota qué hace la etapa *Seleccionar entorno* y en qué se diferencian los dos ficheros de variables. Es lo único que cambia entre entornos: la imagen y el código son los mismos.
+
+**Fallo a corregir.** Abre `lab/Jenkinsfile`: en el bloque `environment { ... }` hay una línea `TARGET_ENV = "staging"`, y en la etapa *Seleccionar entorno* un `if` que cambia la variable a `production` para `main`. Como Jenkins da prioridad a lo declarado en `environment`, ese `if` no tiene efecto y `main` desplegaría en staging, saltándose la aprobación. Compruébalo más adelante en el paso 4 si quieres verlo fallar, o corrígelo ya:
+
+1.  Entra en Gitea: `http://localhost:3000/aula/modulo5168-lab`, abre `lab/Jenkinsfile` y pulsa el icono del lápiz (*Editar archivo*), estando en la rama `main`.
+
+2.  En `environment { ... }` **borra** la línea `TARGET_ENV = "staging"`.
+
+3.  En la etapa *Seleccionar entorno* sustituye el `if (env.BRANCH_NAME == 'main') { ... }` por una sola línea:
+
+```groovy
+env.TARGET_ENV = (env.BRANCH_NAME == 'main') ? 'production' : 'staging'
+```
+
+4.  Pulsa *Hacer commit de los cambios* (en `main`). Si ya habías clonado el repositorio, haz `git pull` antes de crear ramas nuevas.
+
+Las ramas que crees después parten de este `main` ya corregido.
 
 ### Paso 1 · Explorar las credenciales de Jenkins
 
